@@ -229,7 +229,7 @@ class RepButtonView(discord.ui.View):
             conn = sqlite3.connect(db.DB_PATH)
             c = conn.cursor()
             c.execute(
-                "SELECT COUNT(*) FROM rep WHERE thread_id = ? AND user_id != ?",
+                "SELECT COUNT(*) FROM rep WHERE thread_id = ? AND giver_id != ?",
                 (self.thread.id, self.op_id)
             )
             count = c.fetchone()[0]
