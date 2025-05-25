@@ -86,9 +86,9 @@ discord_forum_rep_bot/
 
    ```yaml
    forums:
-     - 765205625524584458   # Forum channel IDs
+     - 123456789012345678   # Forum channel IDs
    tos_message: |
-     Please review our Terms of Service in <#913970503562178580>,
+     Please review our Terms of Service in <#123456789012345678>,
      then click ✅ or ❌. This post will auto-close {timeout} if no action.
    tos_decline_response: |
      You declined the Terms. This thread is now closed.
