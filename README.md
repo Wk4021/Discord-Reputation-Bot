@@ -104,7 +104,8 @@ discord_forum_rep_bot/
    ```bash
    python bot.py
    ```
-
+     Or run the .bat file if you are on windows.
+  
 5. **Invite & Sync**
 
    * Invite with `applications.commands` scope:
