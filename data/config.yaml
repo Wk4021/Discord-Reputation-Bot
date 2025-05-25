@@ -1,0 +1,28 @@
+forums:
+- 1375996428278829177
+tos_message: |
+  Please review our Marketplace Terms of Service in <#913970503562178580>
+  and then click ✅ to agree or ❌ to decline.
+
+  If you do not respond within {timeout}, this post will be automatically closed.
+
+
+# Message shown when someone declines the TOS
+tos_decline_response: |
+  Marketplace terms not accepted. Thread will now be closed.
+
+# Funny messages when a seller has no rep yet
+no_rep_messages:
+  - "Damn, get your rep up! 📈"
+  - "Zero rep? 🚨 Proceed with caution!"
+  - "No rep? Bold move. 🚀"
+  - "Are you new here? 🤔"
+  - "Fresh meat on the block! 🥩 No rep yet!"
+  - "Caution: 0️⃣ reps – untested waters! 🌊"
+  - "Certified Ghost Seller 👻 (0 reps)"
+  - "They rep nobody… and nobody reps them. 🤷"
+  - "Sealed as untested 🚧 Handle with care!"
+  - "First sale jitters? 🐣 Zero rep mode!"
+  - "Reputation: loading… ⏳ 0/100"
+  - "No stars yet ⭐☆☆☆☆"
+  - "They’ve entered the arena with nothing but vibes. ✨"
