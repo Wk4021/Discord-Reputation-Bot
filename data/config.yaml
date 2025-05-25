@@ -1,17 +1,29 @@
+# ───────────────────────────────────────────────
+# List of Forum Channel IDs to track (numeric IDs)
 forums:
-- 1375996428278829177
+  - YOUR_FORUM_CHANNEL_ID_1
+  - YOUR_FORUM_CHANNEL_ID_2
+  # e.g. 765205625524584458
+
+# ───────────────────────────────────────────────
+# The channel where your Terms of Service are posted
+tos_channel_id: YOUR_TOS_CHANNEL_ID
+# e.g. 913970503562178580
+
+# TOS prompt message; {timeout} will be dynamically replaced
 tos_message: |
-  Please review our Marketplace Terms of Service in <#913970503562178580>
+  Please review our Marketplace Terms of Service in <#{{tos_channel_id}}>
   and then click ✅ to agree or ❌ to decline.
 
   If you do not respond within {timeout}, this post will be automatically closed.
-
 
 # Message shown when someone declines the TOS
 tos_decline_response: |
   Marketplace terms not accepted. Thread will now be closed.
 
-# Funny messages when a seller has no rep yet
+# ───────────────────────────────────────────────
+# Funny messages when a seller has no rep yet.
+# Feel free to edit, add, or remove lines as you like.
 no_rep_messages:
   - "Damn, get your rep up! 📈"
   - "Zero rep? 🚨 Proceed with caution!"
