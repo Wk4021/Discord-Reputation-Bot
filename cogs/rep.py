@@ -259,45 +259,117 @@ class RepButtonView(discord.ui.View):
 class Rep(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        # In‐memory storage of log messages & rep events per thread
+        self._log_messages: dict[int, discord.Message] = {}
+        self._rep_events: dict[int, list[str]] = {}
         print("🔧 Rep cog loaded")
+
+    async def _ensure_thread_log(self, thread: discord.Thread) -> discord.Message | None:
+        """
+        Ensure there is a single embed message in the configured log channel
+        for this thread, and return it.
+        """
+        config = load_config()
+        log_ch_id = config.get("log_channel")
+        if not log_ch_id:
+            return None
+
+        log_ch = self.bot.get_channel(log_ch_id)
+        if not log_ch:
+            return None
+
+        # If we already sent and stored a message, try to fetch it
+        if thread.id in self._log_messages:
+            try:
+                msg = await log_ch.fetch_message(self._log_messages[thread.id].id)
+                return msg
+            except (discord.NotFound, discord.Forbidden):
+                pass  # fallback to sending a new one
+
+        # Build initial embed
+        embed = discord.Embed(
+            title=f"📋 Thread Log: {thread.name}",
+            description=f"Thread created by <@{thread.owner_id}>",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.add_field(name="TOS Status", value="Pending ⏳", inline=False)
+        embed.add_field(name="Rep Events", value="*No events yet*", inline=False)
+
+        msg = await log_ch.send(embed=embed)
+        self._log_messages[thread.id] = msg
+        self._rep_events[thread.id] = []
+        return msg
+
+    async def _update_thread_log(self, thread: discord.Thread, *, tos_status=None, rep_event=None, timestamp=None):
+        """
+        Update the thread log embed. 
+        Params:
+          - tos_status: str (new TOS status)
+          - rep_event: str (single new rep line)
+          - timestamp: datetime.datetime (new embed timestamp)
+        """
+        msg = await self._ensure_thread_log(thread)
+        if not msg:
+            return
+
+        embed = msg.embeds[0]
+
+        if tos_status is not None:
+            embed.set_field_at(0, name="TOS Status", value=tos_status, inline=False)
+
+        if rep_event is not None:
+            events = self._rep_events.setdefault(thread.id, [])
+            events.append(rep_event)
+            embed.set_field_at(1, name="Rep Events", value="\n".join(events), inline=False)
+
+        if timestamp is not None:
+            embed.timestamp = timestamp
+
+        await msg.edit(embed=embed)
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread: discord.Thread):
         try:
             config = load_config()
-            # Parse forums
             forums = [int(f) for f in config.get("forums", []) if str(f).isdigit()]
             if thread.parent_id not in forums:
                 return
-            # Try to join so we can send
+
+            # Join so the bot can send
             try:
                 await thread.join()
             except Exception:
                 pass
 
-            # Build TOS prompt
+            # Prepare TOS prompt
             timeout_secs = 30
             ts = int(time.time()) + timeout_secs
             countdown = f"<t:{ts}:R>"
             tos_line = config["tos_message"].replace("{timeout}", countdown)
 
-            # Send with timeout
             view = RepTOSView(thread=thread, op_id=thread.owner_id, timeout=timeout_secs)
             await thread.send(content=tos_line, view=view)
             pending_tos_timestamps[thread.id] = time.time()
+
+            # Initialize log embed
+            await self._update_thread_log(
+                thread,
+                tos_status=f"Prompt sent at <t:{ts}:T>",
+                timestamp=discord.utils.utcnow()
+            )
 
         except Exception as e:
             print(f"[ERROR] on_thread_create: {e}")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # only in threads waiting on TOS
+        # Delete user messages posted after TOS prompt until it's handled
         ts = pending_tos_timestamps.get(message.channel.id)
         if (
             ts
             and isinstance(message.channel, discord.Thread)
             and not message.author.bot
-            # only delete messages sent after the prompt time
             and message.created_at.timestamp() > ts
         ):
             try:
@@ -309,15 +381,19 @@ class Rep(commands.Cog):
     @app_commands.describe(channel="Forum channel to activate rep tracking on.")
     async def channel_set(self, interaction: discord.Interaction, channel: discord.ForumChannel):
         config = load_config()
-        if 'forums' not in config:
-            config['forums'] = []
-        if channel.id not in config['forums']:
-            config['forums'].append(channel.id)
-            with open(CONFIG_PATH, 'w') as f:
+        config.setdefault("forums", [])
+        if channel.id not in config["forums"]:
+            config["forums"].append(channel.id)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f)
-            await interaction.response.send_message(f"✅ Channel {channel.mention} added to rep tracking.", ephemeral=True)
+            await interaction.response.send_message(
+                f"✅ Channel {channel.mention} added to rep tracking.",
+                ephemeral=True
+            )
         else:
-            await interaction.response.send_message("This channel is already tracked.", ephemeral=True)
+            await interaction.response.send_message(
+                "This channel is already tracked.", ephemeral=True
+            )
 
     @app_commands.command(name="rep", description="Check a user's rep status.")
     @app_commands.describe(user="The user to check rep for.")
@@ -338,16 +414,16 @@ class Rep(commands.Cog):
 
     @app_commands.command(name="repleaderboard", description="Show the top 10 users by +rep.")
     async def rep_leaderboard(self, interaction: discord.Interaction):
-        leaderboard = db.get_top_positive_rep(limit=10)
+        top = db.get_top_positive_rep(limit=10)
         embed = discord.Embed(
             title="🏆 Top +Rep Leaderboard",
             description="Here are the top repped users:",
             color=discord.Color.gold()
         )
-        if not leaderboard:
+        if not top:
             embed.description = "No rep data found."
         else:
-            for i, (user_id, pos) in enumerate(leaderboard, start=1):
+            for i, (user_id, pos) in enumerate(top, start=1):
                 member = interaction.guild.get_member(user_id)
                 name = member.display_name if member else f"<@{user_id}>"
                 embed.add_field(name=f"{i}. {name}", value=f"+{pos} rep", inline=False)
@@ -358,7 +434,7 @@ class Rep(commands.Cog):
     async def log_set(self, interaction: discord.Interaction, channel: discord.TextChannel):
         config = load_config()
         config["log_channel"] = channel.id
-        with open(CONFIG_PATH, 'w') as f:
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             yaml.dump(config, f)
         embed = discord.Embed(
             title="✅ Log Channel Set",
@@ -369,3 +445,4 @@ class Rep(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Rep(bot))
+

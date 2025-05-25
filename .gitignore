@@ -1,0 +1,24 @@
+# .gitignore
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite database
+data/rep.db
+
+# Virtual environment
+.venv/
+venv/
+
+# Editor files
+*.swp
+*.swo
+.DS_Store
+.env
+data/config.yaml
+data/config.yaml

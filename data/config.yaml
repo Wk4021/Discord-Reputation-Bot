@@ -1,40 +1,24 @@
-# ───────────────────────────────────────────────
-# List of Forum Channel IDs to track (numeric IDs)
 forums:
-  - YOUR_FORUM_CHANNEL_ID_1
-  - YOUR_FORUM_CHANNEL_ID_2
-  # e.g. 765205625524584458
-
-# ───────────────────────────────────────────────
-# The channel where your Terms of Service are posted
-tos_channel_id: YOUR_TOS_CHANNEL_ID
-# e.g. 913970503562178580
-
-# TOS prompt message; {timeout} will be dynamically replaced
-tos_message: |
-  Please review our Marketplace Terms of Service in <#{{tos_channel_id}}>
-  and then click ✅ to agree or ❌ to decline.
-
-  If you do not respond within {timeout}, this post will be automatically closed.
-
-# Message shown when someone declines the TOS
-tos_decline_response: |
-  Marketplace terms not accepted. Thread will now be closed.
-
-# ───────────────────────────────────────────────
-# Funny messages when a seller has no rep yet.
-# Feel free to edit, add, or remove lines as you like.
+- 1375996428278829177
+- 1376039817191755816
+log_channel: 765231556758732881
 no_rep_messages:
-  - "Damn, get your rep up! 📈"
-  - "Zero rep? 🚨 Proceed with caution!"
-  - "No rep? Bold move. 🚀"
-  - "Are you new here? 🤔"
-  - "Fresh meat on the block! 🥩 No rep yet!"
-  - "Caution: 0️⃣ reps – untested waters! 🌊"
-  - "Certified Ghost Seller 👻 (0 reps)"
-  - "They rep nobody… and nobody reps them. 🤷"
-  - "Sealed as untested 🚧 Handle with care!"
-  - "First sale jitters? 🐣 Zero rep mode!"
-  - "Reputation: loading… ⏳ 0/100"
-  - "No stars yet ⭐☆☆☆☆"
-  - "They’ve entered the arena with nothing but vibes. ✨"
+- "Damn, get your rep up! \U0001F4C8"
+- "Zero rep? \U0001F6A8 Proceed with caution!"
+- "No rep? Bold move. \U0001F680"
+- "Are you new here? \U0001F914"
+- "Fresh meat on the block! \U0001F969 No rep yet!"
+- "Caution: 0\uFE0F\u20E3 reps \u2013 untested waters! \U0001F30A"
+- "Certified Ghost Seller \U0001F47B (0 reps)"
+- "They rep nobody\u2026 and nobody reps them. \U0001F937"
+- "Sealed as untested \U0001F6A7 Handle with care!"
+- "First sale jitters? \U0001F423 Zero rep mode!"
+- "Reputation: loading\u2026 \u23F3 0/100"
+- "No stars yet \u2B50\u2606\u2606\u2606\u2606"
+- "They\u2019ve entered the arena with nothing but vibes. \u2728"
+tos_decline_response: 'Marketplace terms not accepted. Thread will now be closed.
+
+  '
+tos_message: "Please review our Marketplace Terms of Service in <#913970503562178580>\n\
+  and then click \u2705 to agree or \u274C to decline.\n\nIf you do not respond within\
+  \ {timeout}, this post will be automatically closed.\n"
