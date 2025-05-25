@@ -1,93 +1,102 @@
-```markdown
-# 📌 Discord Forum Rep Bot
+<!-- PROJECT BADGES -->
+<p align="center">
+  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/actions"><img src="https://img.shields.io/github/actions/workflow/status/Wk4021/Marketplace-Discord-Rep-Bot/ci.yml?style=for-the-badge" alt="CI Status"/></a>
+  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/stargazers"><img src="https://img.shields.io/github/stars/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Stars"/></a>
+  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues"><img src="https://img.shields.io/github/issues/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Issues"/></a>
+  <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458"><img src="https://img.shields.io/discord/765205625524584458?style=for-the-badge" alt="Discord Server"/></a>
+  <img src="https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge" alt="Python Version"/>
+  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="License"/></a>
+</p>
 
-A **Discord bot** that turns your forum channels into a moderated, reputation-driven marketplace. New threads are gated behind a Terms of Service prompt, user messages are auto-deleted until TOS is accepted or declined, and buyers can leave +rep/–rep ratings on sellers’ posts. All ratings, leaderboards, and logs are persisted in SQLite and configurable via slash commands.
+# 📌 Marketplace Discord Rep Bot
+
+A **Discord** bot that transforms your forum channels into a trusted, reputation-driven marketplace.  
+Threads are gated behind a Terms of Service prompt, early messages are auto-deleted until TOS is handled, and buyers can leave **+rep / −rep** ratings on sellers’ posts. All data persists in **SQLite**, configurable via **slash commands**, and displayed through **rich embeds**.
 
 ---
 
 ## 🚀 Features
 
-- 🛡 **TOS Gating**  
+- 🔒 **TOS Gating**  
   - New threads in tracked forums prompt OP to accept or decline Terms of Service.  
-  - Countdown timer shown with `<t:TIMESTAMP:R>` format.  
-  - Any non-bot messages sent before acceptance/decline are auto-deleted.  
-  - Threads auto-close after timeout if no response.
+  - Live countdown with Discord’s `<t:TIMESTAMP:R>` format.  
+  - Non-bot messages before acceptance/decline are auto-deleted.  
+  - Threads auto-close on timeout if unattended.
 
 - ⭐ **Reputation System**  
-  - OP’s rep displayed as star rating (out of 5) or a cheeky “no rep” message.  
-  - Buyers click **+ Rep** / **– Rep** buttons (one per user per thread).  
-  - OP cannot rate themselves; OP cannot close until they’ve received at least one rep.  
-  - Admins (Manage Threads perm) can override and close immediately.
+  - OP’s reputation shown as a ⭐ star rating or cheeky “no rep” message.  
+  - Buyers click **+ Rep** / **− Rep** buttons (one per user per thread).  
+  - OP cannot rate themselves and must receive ≥1 rep before closing.  
+  - Admins can override close logic with **Manage Threads** permission.
 
 - 📊 **Lookup & Leaderboard**  
-  - `/rep @user` — view that user’s total 👍 and 👎 rep and star rating.  
-  - `/repleaderboard` — top 10 users by total positive rep.
+  - `/rep @user` — View a user’s total 👍 and 👎 rep and star gauge.  
+  - `/repleaderboard` — Display the **Top 10** sellers by positive rep.
 
-- 📝 **Slash-Commands Configuration**  
-  - `/channel_set <forum>` — activate a forum channel for rep/TOS gating.  
-  - `/log set <channel>` — designate a channel to receive embed-style rep logs.
+- 🛠️ **Slash-Command Configuration**  
+  - `/channel_set <forum>` — Activate a forum channel for marketplace gating.  
+  - `/log set <channel>` — Send rep-action embeds to a designated log channel.
 
-- 🔄 **Persistence & Reliability**  
-  - Uses **SQLite** for all reputation data (`data/rep.db`).  
-  - **Persistent Views**: buttons survive bot restarts.  
-  - Configurable via **`data/config.yaml`**.  
-  - All bot messages are rich embeds for clarity.
+- 💾 **Persistence & Reliability**  
+  - Uses **SQLite** (`data/rep.db`) for all reputation data.  
+  - **Persistent Views**: Buttons survive bot restarts.  
+  - Easy config via `data/config.yaml` & `assets/rep_messages.txt`.  
+  - All bot messages are **Discord embeds** for best readability.
 
 ---
 
-## 📁 File Structure
+## 📁 Project Structure
 
-```
-
-discord\_forum\_rep\_bot/
-├── bot.py                  # Entry point: loads cogs, registers views, syncs commands
+```bash
+discord_forum_rep_bot/
+├── bot.py                  # Entry point: loads cogs, registers views, handles sync
 ├── cogs/
-│   └── rep.py              # Core cog: TOS gating, rep UI, slash commands, listeners
+│   └── rep.py              # Core cog: TOS gating, rep UI, commands, listeners
 ├── data/
-│   ├── config.yaml         # Your settings: tracked forums, TOS text, funny messages, log channel
-│   └── rep.db              # SQLite database (auto-created on first run)
+│   ├── config.yaml         # Settings: tracked forums, messages, log channel
+│   └── rep.db              # SQLite DB (auto-created)
 ├── utils/
 │   └── db.py               # SQLite helper: schema init, add/get rep, leaderboard
 ├── assets/
-│   └── rep\_messages.txt    # One-line “no rep” messages (randomized)
-├── .env                    # ⚠️ add your `DISCORD_TOKEN` here (see .gitignore)
-├── requirements.txt        # `discord.py`, `PyYAML`, `python-dotenv`
+│   └── rep_messages.txt    # “No rep” message pool
+├── .env                    # ⚠️ DISCORD_TOKEN (in .gitignore)
+├── requirements.txt        # Dependencies
 └── .gitignore              # ignore `.env`, `__pycache__/`, `data/rep.db`, `.venv/`
-
 ````
 
 ---
 
-## ⚙️ Setup & Run
+## ⚙️ Installation & Setup
 
-1. **Clone & install dependencies**  
+1. **Clone & install dependencies**
+
    ```bash
-   git clone https://github.com/yourusername/discord_forum_rep_bot.git
-   cd discord_forum_rep_bot
+   git clone https://github.com/Wk4021/Marketplace-Discord-Rep-Bot.git
+   cd Marketplace-Discord-Rep-Bot
    pip install -r requirements.txt
-````
+   ```
 
 2. **Create `.env`**
 
    ```env
-   DISCORD_TOKEN=YOUR_BOT_TOKEN_HERE
+   DISCORD_TOKEN=YOUR_DISCORD_BOT_TOKEN
    ```
 
 3. **Configure `data/config.yaml`**
 
    ```yaml
    forums:
-     - 913970503562178580   # Forum channel IDs to track
+     - 765205625524584458   # Forum channel IDs
    tos_message: |
-     Please review our Terms of Service in <#913970503562178580>, then click ✅ or ❌.
-     This post will auto-close {timeout} if no action is taken.
+     Please review our Terms of Service in <#913970503562178580>,
+     then click ✅ or ❌. This post will auto-close {timeout} if no action.
    tos_decline_response: |
-     You declined the Terms of Service. This thread is now closed.
+     You declined the Terms. This thread is now closed.
    no_rep_messages:
      - "Damn, get your rep up! 📈"
      - "Zero rep? 🚨 Proceed with caution!"
-     - … (add as many lines as you like)
-   log_channel:                  # optional: channel ID for logging
+     # …add more!
+   log_channel: 123456789012345678  # Optional: ID for logging
    ```
 
 4. **Run the bot**
@@ -96,80 +105,44 @@ discord\_forum\_rep\_bot/
    python bot.py
    ```
 
-5. **Authorize & sync**
+5. **Invite & Sync**
 
-   * Make sure your OAuth2 invite URL includes `applications.commands` scope.
-   * On first run, the bot auto-syncs slash commands. You can also use `!sync` in any text channel.
+   * Invite with `applications.commands` scope:
 
----
-
-## 🧠 How It Works
-
-1. **Thread Creation**
-
-   * Listens to `on_thread_create`.
-   * If `thread.parent_id` is in `forums`, the bot:
-
-     * Marks thread as pending TOS.
-     * Joins thread (if private) to allow messaging.
-     * Sends a TOS prompt with a `{timeout}` countdown.
-
-2. **Gating Messages**
-
-   * `on_message` deletes any non-bot messages in threads pending TOS whose timestamp > prompt time.
-   * Once OP clicks ✅ or ❌ (or timeouts), the pending flag is removed and gating stops.
-
-3. **TOS View**
-
-   * **Agree (✅)**
-
-     * Cancels timeout, unblocks thread, deletes prompt, then calls `post_rep_ui()`.
-   * **Decline (❌)**
-
-     * Cancels timeout, unblocks thread, edits prompt to `tos_decline_response`, then archives & locks.
-
-4. **Rep UI**
-
-   * Presents OP’s rep star rating or a random “no rep” message.
-   * Buyers click **+ Rep** / **– Rep**: stored per giver→receiver in SQLite.
-   * Confirmation embeds sent to user & optionally to `log_channel`.
-
-5. **Closing Posts**
-
-   * **Close Post** button available after rep UI.
-   * Only OP (with at least one rep) or admins can close.
-   * Archives & locks thread.
-
-6. **Slash Commands**
-
-   * `/channel_set <forum>` – add a forum to `config.yaml`.
-   * `/rep @user` – show user’s total 👍/👎 and stars.
-   * `/repleaderboard` – top 10 by 👍 rep.
-   * `/log set <channel>` – set rep log channel.
+     ```
+     https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot%20applications.commands&permissions=8
+     ```
+   * Use `!sync` to register slash commands globally (may take up to 1 hour).
 
 ---
 
-## ❓ FAQ
+## 📊 Star-Rating Guide
 
-**Q: How do I add more “no rep” messages?**
-
-* Edit `assets/rep_messages.txt`, one message per line.
-
-**Q: Can I change the TOS timeout length?**
-
-* In `on_thread_create`, adjust `timeout_secs = 30`.
-
-**Q: Why aren’t slash commands showing?**
-
-* Ensure the bot is invited with `applications.commands` scope and run `!sync`.
-
-**Q: How do I remove a forum channel?**
-
-* Manually edit `data/config.yaml`, remove the ID from `forums:`, then restart.
+| Pos ➗ Total | Score (0–10) | Stars (out of 5) |
+| :---------: | :----------: | :--------------: |
+|    0 / 0    |       —      |       ☆☆☆☆☆      |
+|    1 / 1    |      10      |       ⭐⭐⭐⭐⭐      |
+|    3 / 4    |       8      |       ⭐⭐⭐⭐☆      |
+|    2 / 5    |       4      |       ⭐⭐☆☆☆      |
+|    0 / 5    |       0      |       ☆☆☆☆☆      |
 
 ---
 
-Made with ❤️ for safe, fun, and fair Discord marketplaces!
-Feel free to file issues or contribute enhancements via pull requests.
+## ❓ Troubleshooting & FAQ
 
-```
+**Q: How do I report bugs or ask questions?**
+Please [open an issue](https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues) on the repo.
+
+**Q: Can I contribute or request new features?**
+Absolutely! Fork the repo, submit a PR, and don’t forget to ⭐ the project if you find it helpful.
+
+**Q: Why are slash commands delayed?**
+Global sync can take up to **1 hour**. Use `!sync` to manually trigger registration.
+
+---
+
+<p align="center">
+  ⭐ If you find this bot useful, please give it a star! ⭐  
+  <br/>
+  <em>Join our community on Discord:</em> <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458">Marketplace & Student Stores</a>
+</p>
