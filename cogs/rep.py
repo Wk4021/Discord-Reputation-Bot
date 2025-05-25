@@ -347,8 +347,9 @@ class Rep(commands.Cog):
             ts = int(time.time()) + timeout_secs
             countdown = f"<t:{ts}:R>"
             tos_line = config["tos_message"].replace("{timeout}", countdown)
-
+            
             view = RepTOSView(thread=thread, op_id=thread.owner_id, timeout=timeout_secs)
+            await asyncio.sleep(2)
             await thread.send(content=tos_line, view=view)
             pending_tos_timestamps[thread.id] = time.time()
 
