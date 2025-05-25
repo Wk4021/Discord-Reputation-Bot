@@ -1,19 +1,29 @@
-Damn, get your rep up!
-Zero rep? That’s a red flag 🚩
-Not a single rep… interesting.
-You're entering the marketplace raw. Bold.
-Certified ✨ Rep-less ✨ moment.
-They got no rep... but they got dreams.
-Rep-less and reckless!
-Would you trust a seller with no reviews? Me neither.
-Suspiciously clean rep sheet 👀
-🤔 First deal, or first scam?
-New phone, who dis? No rep found.
-No rep? Might be a trap.
-They rep nobody, and nobody reps them.
-Looks like they're built different. Zero rep different.
-Unrepentant and unrep’d.
-Trust them... at your own risk.
-This user's rep is currently in a different castle.
-Not even one +rep? Now that's rare.
-They’ve entered the arena with nothing but vibes.
+# assets/rep_messages.txt
+# Format: <category>|<message>
+# Categories: good, neutral, bad
+
+good|You’re absolutely crushing it! 🔥 https://c.tenor.com/2oEcSW3zP98AAAAd/tenor.gif
+good|Chef’s kiss! 👨‍🍳👌 Your rep is Michelin-star worthy. https://c.tenor.com/hgy5Xk1NE3wAAAAd/tenor.gif
+good|Legendary seller unlocked! 🏆 Keep the hits coming! https://c.tenor.com/8Pu2UgqvjUQAAAAd/tenor.gif
+good|All-star status achieved! ⭐⭐⭐⭐⭐ https://c.tenor.com/X5jHcXDSA28AAAAd/tenor.gif
+good|Smooth sailing on the rep seas! ⛵️🌊 https://c.tenor.com/FCjkrNfWKi0AAAAd/tenor.gif
+good|When life gives you lemons, you get +rep. 🍋👍 https://c.tenor.com/5qpPwvZiyaIAAAAd/tenor.gif
+
+neutral|Solid performance—nice and steady! 📈 https://c.tenor.com/EFqSNRfgGi4AAAAd/tenor.gif
+neutral|Not too shabby… you’ve got room to level up! 🚀 https://c.tenor.com/EFqSNRfgGi4AAAAd/tenor.gif
+neutral|Half-time report: you’re in the game! 🏀 https://c.tenor.com/X2DlTPHcISsAAAAd/tenor.gif
+neutral|Almost there—just a few more happy customers! 😊 https://c.tenor.com/X2DlTPHcISsAAAAd/tenor.gif
+neutral|Keeping it balanced like a tightrope walker. 🤹 https://c.tenor.com/ZMCA0ALtYmcAAAAd/tenor.gif
+neutral|Neither here nor there—play your next hand right! 🃏 https://c.tenor.com/ZMCA0ALtYmcAAAAd/tenor.gif
+neutral|On the fence? Let’s tilt it in your favor! 🏗️ https://c.tenor.com/mrJk9SFWbh4AAAAd/tenor.gif
+neutral|Mid-pack vibes: charge ahead for the podium! 🥉 https://c.tenor.com/mrJk9SFWbh4AAAAd/tenor.gif
+
+bad|Ouch—that rep chart needs TLC! 💔 https://c.tenor.com/pTLiCpEOOWUAAAAd/tenor.gif
+bad|Better luck next time, my friend. 🍀 https://c.tenor.com/pTLiCpEOOWUAAAAd/tenor.gif
+bad|Time for a comeback tour! 🎤 https://c.tenor.com/_JsjveyGrQcAAAAd/tenor.gif
+bad|Brace yourself… you’ve got some rebuilding to do! 🏗️ https://c.tenor.com/ahn-mNcMlmEAAAAd/tenor.gif
+bad|Uh-oh, your rep’s in the danger zone! 🚨 https://c.tenor.com/EFqSNRfgGi4AAAAd/tenor.gif
+bad|That rep is on life support! ⚕️ https://c.tenor.com/EFqSNRfgGi4AAAAd/tenor.gif
+bad|Revenue therapy session needed—stat! 🛋️ https://c.tenor.com/ahn-mNcMlmEAAAAd/tenor.gif
+bad|Don’t feel bad—every phoenix needs a flame to rise! 🔥🦅 https://c.tenor.com/ahn-mNcMlmEAAAAd/tenor.gif
+

@@ -6,7 +6,7 @@ import random
 import asyncio
 import sqlite3
 import time
-
+import re
 from utils import db
 
 CONFIG_PATH = 'data/config.yaml'
@@ -113,22 +113,77 @@ def generate_star_rating(positive: int, negative: int) -> str | None:
     stars = "⭐" * (score // 2) + "☆" * (5 - (score // 2))
     return f"Rating: {stars} ({positive}👍 / {negative}👎)"
 
+# Load the category→messages mapping
+def load_rep_messages():
+    cats = {"good": [], "neutral": [], "bad": []}
+    try:
+        with open("assets/rep_messages.txt", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "|" in line:
+                    cat, msg = line.split("|", 1)
+                    cat = cat.strip().lower()
+                    msg = msg.strip()
+                    if cat in cats:
+                        cats[cat].append(msg)
+    except FileNotFoundError:
+        # fallback to a minimal set
+        cats["neutral"].append("No rep data…")
+    return cats
+
+GIF_URL_RE = re.compile(
+    r'(https?://\S+?\.(?:gif|mp4|webm))(?=[\s"\'<]|$)', 
+    flags=re.IGNORECASE
+)
 
 async def post_rep_ui(thread: discord.Thread, op_id: int):
     config = load_config()
-    no_rep_lines = load_funny_messages()
+    rep_msgs = load_rep_messages()
+    no_rep_lines = config.get("no_rep_messages", [])
 
     pos, neg = db.get_user_rep(op_id)
-    rep_display = generate_star_rating(pos, neg)
+    total = pos + neg
 
-    content = (
-        f"📊 {rep_display}"
-        if rep_display
-        else f"😶 {random.choice(no_rep_lines)}"
-    )
+    # 1) No rep yet
+    if total == 0:
+        content = f"😶 {random.choice(no_rep_lines)}"
+        gif_url = None
+
+    # 2) Otherwise pick a line
+    else:
+        ratio = pos / total
+        if ratio >= 0.7:
+            pool = rep_msgs["good"]
+        elif ratio <= 0.3:
+            pool = rep_msgs["bad"]
+        else:
+            pool = rep_msgs["neutral"]
+
+        raw = random.choice(pool) if pool else ""
+        # Split on last space
+        parts = raw.rsplit(" ", 1)
+        if len(parts) == 2 and parts[1].lower().endswith((".gif", ".mp4", ".webm")):
+            text, gif_url = parts[0], parts[1]
+        else:
+            text, gif_url = raw, None
+
+        content = text
+
+    # 3) Prepend star rating if any
+    rep_display = generate_star_rating(pos, neg)
+    if rep_display and total > 0:
+        content = f"📊 {rep_display}\n\n{content}"
+
+    # 4) Build the embed
+    embed = discord.Embed(description=content, color=discord.Color.green())
+    if gif_url:
+        embed.set_image(url=gif_url)
+        print(f"[DEBUG] Embedding GIF: {gif_url}")  # for your logs
 
     view = RepButtonView(op_id=op_id, thread=thread)
-    await thread.send(content, view=view)
+    await thread.send(embed=embed, view=view)
 
 
 class RepButtonView(discord.ui.View):
@@ -209,23 +264,16 @@ class RepButtonView(discord.ui.View):
         await self.rep_user(interaction, '-')
 
     @discord.ui.button(label='Close Post', style=discord.ButtonStyle.secondary)
-    async def close(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         try:
-            # Permission check
-            if (
-                interaction.user.id != self.op_id
-                and not interaction.user.guild_permissions.manage_threads
-            ):
+            # 1) Only the OP can close
+            if interaction.user.id != self.op_id:
                 return await interaction.response.send_message(
-                    "Only the OP or an admin can close this post.",
+                    "Only the thread creator can close this post.",
                     ephemeral=True
                 )
 
-            # Ensure OP got at least one rep
+            # 2) Must have at least one rep
             conn = sqlite3.connect(db.DB_PATH)
             c = conn.cursor()
             c.execute(
@@ -235,26 +283,29 @@ class RepButtonView(discord.ui.View):
             count = c.fetchone()[0]
             conn.close()
 
-            if interaction.user.id == self.op_id and count == 0:
+            if count == 0:
                 return await interaction.response.send_message(
-                    "You must receive a rep before closing.",
+                    "You must receive at least one rep before closing your post.",
                     ephemeral=True
                 )
 
-            # Archive & lock
-            await self.thread.edit(archived=True, locked=True)
+            # 3) Announce closure in‐thread (normal message)
             await interaction.response.send_message(
-                "Thread closed.",
+                "🔒 This thread is now closed by its creator.",
                 ephemeral=False
             )
 
+            # 4) Archive & lock the thread
+            await self.thread.edit(archived=True, locked=True)
+
         except Exception as e:
             print(f"[ERROR] close button handler: {e}")
-            return await interaction.response.send_message(
-                "⚠️ Something went wrong. Please try again later.",
-                ephemeral=True
-            )
-
+            # If we haven't responded yet, send an ephemeral failure
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "⚠️ Something went wrong. Please try again later.",
+                    ephemeral=True
+                )
 
 class Rep(commands.Cog):
     def __init__(self, bot: commands.Bot):
