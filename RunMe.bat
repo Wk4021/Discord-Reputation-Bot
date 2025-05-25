@@ -1,29 +1,27 @@
 @echo off
 REM ────────────────────────────────────────────────
-REM  Windows .BAT to activate your venv and run bot.py
+REM  run_bot.bat – activate venv if it exists, else use global Python
 REM ────────────────────────────────────────────────
 
-REM 1) Change directory to the location of this script
+REM 1) Change to the directory of this script
 cd /d "%~dp0"
 
-REM 2) Activate the virtual environment
-IF EXIST ".venv\Scripts\activate.bat" (
-    call .venv\Scripts\activate.bat
-) ELSE IF EXIST "venv\Scripts\activate.bat" (
-    call venv\Scripts\activate.bat
-) ELSE (
-    echo ERROR: No virtualenv found in .venv or venv folder.
-    pause
-    exit /b 1
+REM 2) If a virtualenv activation script exists, call it
+if exist ".venv\Scripts\activate.bat" (
+    echo Activating .venv...
+    call ".venv\Scripts\activate.bat"
+) else if exist "venv\Scripts\activate.bat" (
+    echo Activating venv...
+    call "venv\Scripts\activate.bat"
+) else (
+    echo No virtualenv found, running global python.
 )
 
-REM 3) (Optional) Show which python is running
-where python
-
-REM 4) Run the bot
+REM 3) Run the bot
+echo Starting bot...
 python bot.py
 
-REM 5) Keep the window open on exit / crash
+REM 4) Keep the window open on exit
 echo.
-echo Bot has exited. Press any key to close.
+echo Bot has exited. Press any key to close this window.
 pause
