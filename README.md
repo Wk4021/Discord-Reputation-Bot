@@ -154,3 +154,4 @@ Global registration can take up to **1 hour**. Use `!sync` for an immediate upda
   <br/>
   <em>Join our community on Discord:</em> <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458">Marketplace & Student Stores</a>
 </p>
+
