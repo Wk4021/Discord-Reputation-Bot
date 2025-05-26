@@ -32,7 +32,6 @@ async def on_ready():
     # Register persistent views for button survival
     bot.add_view(RepButtonView())
     bot.add_view(RepTOSView())
-    bot.add_view(RepButtonView(None, None))
 
     print("✅ Ready. Use !sync to globally sync slash commands.")
 

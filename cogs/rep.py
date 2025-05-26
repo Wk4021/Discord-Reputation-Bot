@@ -56,6 +56,14 @@ class RepTOSView(discord.ui.View):
         self.stop()
         pending_tos_timestamps.pop(self.thread.id, None)
 
+        # ─── Update the Thread Log with ✅ Accepted ───
+        rep_cog = interaction.client.get_cog("Rep")
+        if rep_cog:
+            await rep_cog._update_thread_log(
+                self.thread,
+                tos_status=f"✅ Accepted at <t:{int(time.time())}:T>"
+            )
+
         # Remove the TOS prompt and proceed to the rep UI
         await interaction.message.delete()
         await post_rep_ui(self.thread, self.op_id)
@@ -76,6 +84,15 @@ class RepTOSView(discord.ui.View):
         self.stop()
         pending_tos_timestamps.pop(self.thread.id, None)
 
+        
+        # ─── Update the Thread Log with ❌ Declined ───
+        rep_cog = interaction.client.get_cog("Rep")
+        if rep_cog:
+            await rep_cog._update_thread_log(
+                self.thread,
+                tos_status=f"❌ Declined at <t:{int(time.time())}:T>"
+            )
+
         config = load_config()
         # Edit the prompt to the decline response
         await interaction.message.edit(
@@ -88,10 +105,21 @@ class RepTOSView(discord.ui.View):
 
     async def on_timeout(self):
         # Called if neither button is pressed within timeout
+        self.stop()
         pending_tos_timestamps.pop(self.thread.id, None)
 
         try:
             print(f"[TOS] Thread {self.thread.id} timed out. Auto-closing.")
+
+            # ─── Update the Thread Log to show ❌ Timed Out ───
+            bot = self.thread._state._get_client()
+            rep_cog = bot.get_cog("Rep")
+            if rep_cog:
+                await rep_cog._update_thread_log(
+                    self.thread,
+                    tos_status=f"⌛ Timed out at <t:{int(time.time())}:T>",
+                    thread_status=f"❌ Closed (timeout)"
+                )
 
             # Notify in-thread
             await self.thread.send(
@@ -182,64 +210,74 @@ async def post_rep_ui(thread: discord.Thread, op_id: int):
         embed.set_image(url=gif_url)
         print(f"[DEBUG] Embedding GIF: {gif_url}")  # for your logs
 
-    view = RepButtonView(op_id=op_id, thread=thread)
+    view = RepButtonView()
     await thread.send(embed=embed, view=view)
 
 
 class RepButtonView(discord.ui.View):
-    def __init__(self, op_id: int, thread: discord.Thread):
+    def __init__(self):
+        # persistent across restarts
         super().__init__(timeout=None)
-        self.op_id = op_id
-        self.thread = thread
 
-    async def rep_user(
-        self,
-        interaction: discord.Interaction,
-        rep_type: str
-    ):
-        if interaction.user.id == self.op_id:
+    async def rep_user(self, interaction: discord.Interaction, rep_type: str):
+        thread: discord.Thread = interaction.channel
+        op_id = thread.owner_id
+
+        # 1) Prevent self-rep
+        if interaction.user.id == op_id:
             return await interaction.response.send_message(
-                "You can't rep yourself.",
-                ephemeral=True
+                "You can't rep yourself.", ephemeral=True
             )
 
-        # Ensure user has posted in the thread first
+        # 2) Require the user to have spoken in the thread
         has_spoken = False
-        async for msg in self.thread.history(limit=100):
+        async for msg in thread.history(limit=100):
             if msg.author.id == interaction.user.id:
                 has_spoken = True
                 break
         if not has_spoken:
             return await interaction.response.send_message(
-                "You need to interact in the thread first.",
-                ephemeral=True
+                "You need to interact in the thread first.", ephemeral=True
             )
 
-        # Record the rep
+        # 3) Record the rep
         success = db.add_rep(
             interaction.user.id,  # giver
-            self.op_id,           # receiver
-            self.thread.id,
+            op_id,                # receiver
+            thread.id,
             rep_type
         )
         if not success:
             return await interaction.response.send_message(
-                "You've already repped in this thread.",
-                ephemeral=True
+                "You've already repped in this thread.", ephemeral=True
             )
 
-        # Confirmation embed
+        # 4) Confirmation embed
         embed = discord.Embed(
             title="✅ Rep Given",
             description=(
                 f"{interaction.user.mention} gave a **{rep_type}rep** "
-                f"to <@{self.op_id}> in [this thread]({self.thread.jump_url})"
+                f"to <@{op_id}> in [this thread]({thread.jump_url})"
             ),
             color=discord.Color.green() if rep_type == '+' else discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        # Log it if configured
+        # 5) Update thread log
+        rep_cog = interaction.client.get_cog("Rep")
+        if rep_cog:
+            await rep_cog._update_thread_log(
+                thread,
+                rep_event=(
+                    f"{interaction.user.mention} gave {rep_type}rep "
+                    f"at <t:{int(time.time())}:T>"
+                )
+            )
+
+        # 6) Refresh the in‐thread rep UI (star rating + GIF)
+        # await post_rep_ui(thread, op_id)
+
+        # 7) Send to log channel if configured
         config = load_config()
         log_ch_id = config.get("log_channel")
         if log_ch_id:
@@ -247,65 +285,57 @@ class RepButtonView(discord.ui.View):
             if log_ch:
                 await log_ch.send(embed=embed)
 
-    @discord.ui.button(label='+ Rep', style=discord.ButtonStyle.success)
-    async def plus(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    @discord.ui.button(custom_id="rep_plus", label="+ Rep", style=discord.ButtonStyle.success)
+    async def plus(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.rep_user(interaction, '+')
 
-    @discord.ui.button(label='- Rep', style=discord.ButtonStyle.danger)
-    async def minus(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    @discord.ui.button(custom_id="rep_minus", label="- Rep", style=discord.ButtonStyle.danger)
+    async def minus(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.rep_user(interaction, '-')
 
-    @discord.ui.button(label='Close Post', style=discord.ButtonStyle.secondary)
+    @discord.ui.button(custom_id="close_post", label="Close Post", style=discord.ButtonStyle.secondary)
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            # 1) Only the OP can close
-            if interaction.user.id != self.op_id:
-                return await interaction.response.send_message(
-                    "Only the thread creator can close this post.",
-                    ephemeral=True
-                )
+        thread = interaction.channel  # type: discord.Thread
+        op_id = thread.owner_id
 
-            # 2) Must have at least one rep
-            conn = sqlite3.connect(db.DB_PATH)
-            c = conn.cursor()
-            c.execute(
-                "SELECT COUNT(*) FROM rep WHERE thread_id = ? AND giver_id != ?",
-                (self.thread.id, self.op_id)
-            )
-            count = c.fetchone()[0]
-            conn.close()
-
-            if count == 0:
-                return await interaction.response.send_message(
-                    "You must receive at least one rep before closing your post.",
-                    ephemeral=True
-                )
-
-            # 3) Announce closure in‐thread (normal message)
-            await interaction.response.send_message(
-                "🔒 This thread is now closed by its creator.",
-                ephemeral=False
+        # 1) Only the OP may close
+        if interaction.user.id != op_id:
+            return await interaction.response.send_message(
+                "Only the thread creator can close this post.", ephemeral=True
             )
 
-            # 4) Archive & lock the thread
-            await self.thread.edit(archived=True, locked=True)
+        # 2) Must have at least one rep
+        conn = sqlite3.connect(db.DB_PATH)
+        c = conn.cursor()
+        c.execute(
+            "SELECT COUNT(*) FROM rep WHERE thread_id = ? AND giver_id != ?",
+            (thread.id, op_id)
+        )
+        count = c.fetchone()[0]
+        conn.close()
 
-        except Exception as e:
-            print(f"[ERROR] close button handler: {e}")
-            # If we haven't responded yet, send an ephemeral failure
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "⚠️ Something went wrong. Please try again later.",
-                    ephemeral=True
-                )
+        if count == 0:
+            return await interaction.response.send_message(
+                "You must receive at least one rep before closing your post.",
+                ephemeral=True
+            )
+
+        # 3) Announce closure
+        await interaction.response.send_message(
+            "🔒 This thread is now closed by its creator.", ephemeral=False
+        )
+
+        # 4) Update thread log to Closed
+        rep_cog = interaction.client.get_cog("Rep")
+        if rep_cog:
+            await rep_cog._update_thread_log(
+                thread,
+                thread_status=f"❌ Closed at <t:{int(time.time())}:T>"
+            )
+
+        # 5) Archive & lock
+        await thread.edit(archived=True, locked=True)
+
 
 class Rep(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -316,55 +346,60 @@ class Rep(commands.Cog):
         print("🔧 Rep cog loaded")
 
     async def _ensure_thread_log(self, thread: discord.Thread) -> discord.Message | None:
-        """
-        Ensure there is a single embed message in the configured log channel
-        for this thread, and return it.
-        """
         config = load_config()
         log_ch_id = config.get("log_channel")
         if not log_ch_id:
             return None
-
         log_ch = self.bot.get_channel(log_ch_id)
         if not log_ch:
+            print(f"[WARN] log_channel {log_ch_id} not found")
             return None
 
-        # If we already sent and stored a message, try to fetch it
+        # Fetch existing log message if we have it
         if thread.id in self._log_messages:
             try:
-                msg = await log_ch.fetch_message(self._log_messages[thread.id].id)
-                return msg
+                return await log_ch.fetch_message(self._log_messages[thread.id].id)
             except (discord.NotFound, discord.Forbidden):
-                pass  # fallback to sending a new one
+                pass
 
-        # Build initial embed
+        # Build the initial embed with 3 fields
         embed = discord.Embed(
-            title=f"📋 Thread Log: {thread.name}",
-            description=f"Thread created by <@{thread.owner_id}>",
+            title=f"📋 [Thread: {thread.name}]({thread.jump_url})",
+            description=f"Created by <@{thread.owner_id}>",
             color=discord.Color.blurple(),
             timestamp=discord.utils.utcnow()
         )
-        embed.add_field(name="TOS Status", value="Pending ⏳", inline=False)
+        embed.add_field(name="TOS Status", value="⏳ Pending", inline=False)
         embed.add_field(name="Rep Events", value="*No events yet*", inline=False)
+        embed.add_field(name="Thread Status", value="✅ Open", inline=False)
 
         msg = await log_ch.send(embed=embed)
         self._log_messages[thread.id] = msg
         self._rep_events[thread.id] = []
         return msg
 
-    async def _update_thread_log(self, thread: discord.Thread, *, tos_status=None, rep_event=None, timestamp=None):
+
+    async def _update_thread_log(
+        self,
+        thread: discord.Thread,
+        *,
+        tos_status: str | None = None,
+        rep_event: str | None = None,
+        thread_status: str | None = None
+    ):
         """
-        Update the thread log embed. 
-        Params:
-          - tos_status: str (new TOS status)
-          - rep_event: str (single new rep line)
-          - timestamp: datetime.datetime (new embed timestamp)
+        Update the thread‐log embed for this thread.
+        - tos_status: overwrite field 0
+        - rep_event: append to field 1
+        - thread_status: overwrite field 2
         """
         msg = await self._ensure_thread_log(thread)
         if not msg:
             return
 
         embed = msg.embeds[0]
+
+        embed.timestamp = discord.utils.utcnow()
 
         if tos_status is not None:
             embed.set_field_at(0, name="TOS Status", value=tos_status, inline=False)
@@ -374,10 +409,11 @@ class Rep(commands.Cog):
             events.append(rep_event)
             embed.set_field_at(1, name="Rep Events", value="\n".join(events), inline=False)
 
-        if timestamp is not None:
-            embed.timestamp = timestamp
+        if thread_status is not None:
+            embed.set_field_at(2, name="Thread Status", value=thread_status, inline=False)
 
         await msg.edit(embed=embed)
+
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread: discord.Thread):
@@ -407,8 +443,23 @@ class Rep(commands.Cog):
             # Initialize log embed
             await self._update_thread_log(
                 thread,
-                tos_status=f"Prompt sent at <t:{ts}:T>",
-                timestamp=discord.utils.utcnow()
+                tos_status=f"Prompt sent at <t:{ts}:T>"
+            )
+            await self._update_thread_log(
+                thread,
+                tos_status=f"✅ Accepted at <t:{int(time.time())}:T>"
+            )
+
+            # when the OP clicks ❌
+            await self._update_thread_log(
+                thread,
+                tos_status=f"❌ Declined at <t:{int(time.time())}:T>"
+            )
+
+            # in on_timeout
+            await self._update_thread_log(
+                thread,
+                tos_status=f"⌛ Timed out at <t:{int(time.time())}:T>"
             )
 
         except Exception as e:
