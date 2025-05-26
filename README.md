@@ -1,6 +1,6 @@
 <!-- PROJECT BADGES -->
 <p align="center">
-  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/actions"><img src="https://img.shields.io/github/actions/workflow/status/Wk4021/Marketplace-Discord-Rep-Bot/ci.yml?style=for-the-badge" alt="CI Status"/></a>
+  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/releases"><img src="https://img.shields.io/github/v/release/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="Release"/></a>
   <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/stargazers"><img src="https://img.shields.io/github/stars/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Stars"/></a>
   <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues"><img src="https://img.shields.io/github/issues/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Issues"/></a>
   <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458"><img src="https://img.shields.io/discord/765205625524584458?style=for-the-badge" alt="Discord Server"/></a>
@@ -26,20 +26,25 @@ Threads are gated behind a Terms of Service prompt, early messages are auto-dele
 - ⭐ **Reputation System**  
   - OP’s reputation shown as a ⭐ star rating or cheeky “no rep” message.  
   - Buyers click **+ Rep** / **− Rep** buttons (one per user per thread).  
-  - OP cannot rate themselves and must receive ≥1 rep before closing.  
-  - Admins can override close logic with **Manage Threads** permission.
+  - OP cannot rate themselves and must receive ≥1 rep before closing.
+
+- 📝 **Thread Log & Persistence**  
+  - **Persistent Views**: +Rep, −Rep, and Close buttons survive bot restarts.  
+  - **Single‐Embed Thread Logs** in your `/log set` channel:  
+    - **TOS Status**: ⏳ Pending → ✅ Accepted / ❌ Declined / ⌛ Timed‐out  
+    - **Rep Events**: Appends each +/− rep with timestamps  
+    - **Thread Status**: ✅ Open → ❌ Closed (with time)
 
 - 📊 **Lookup & Leaderboard**  
   - `/rep @user` — View a user’s total 👍 and 👎 rep and star gauge.  
   - `/repleaderboard` — Display the **Top 10** sellers by positive rep.
 
-- 🛠️ **Slash-Command Configuration**  
+- 🔧 **Slash-Command Configuration**  
   - `/channel_set <forum>` — Activate a forum channel for marketplace gating.  
   - `/log set <channel>` — Send rep-action embeds to a designated log channel.
 
 - 💾 **Persistence & Reliability**  
   - Uses **SQLite** (`data/rep.db`) for all reputation data.  
-  - **Persistent Views**: Buttons survive bot restarts.  
   - Easy config via `data/config.yaml` & `assets/rep_messages.txt`.  
   - All bot messages are **Discord embeds** for best readability.
 
@@ -58,7 +63,7 @@ discord_forum_rep_bot/
 ├── utils/
 │   └── db.py               # SQLite helper: schema init, add/get rep, leaderboard
 ├── assets/
-│   └── rep_messages.txt    # “No rep” message pool
+│   └── rep_messages.txt    # “No-rep” & GIF URLs
 ├── .env                    # ⚠️ DISCORD_TOKEN (in .gitignore)
 ├── requirements.txt        # Dependencies
 └── .gitignore              # ignore `.env`, `__pycache__/`, `data/rep.db`, `.venv/`
@@ -95,7 +100,6 @@ discord_forum_rep_bot/
    no_rep_messages:
      - "Damn, get your rep up! 📈"
      - "Zero rep? 🚨 Proceed with caution!"
-     # …add more!
    log_channel: 123456789012345678  # Optional: ID for logging
    ```
 
@@ -104,20 +108,23 @@ discord_forum_rep_bot/
    ```bash
    python bot.py
    ```
-     Or run the .bat file if you are on windows.
-  
+
+   Or on Windows, double-click `run_bot.bat`.
+
 5. **Invite & Sync**
 
-   * Invite with `applications.commands` scope:
+   Invite with both `bot` and `applications.commands` scopes:
 
-     ```
-     https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot%20applications.commands&permissions=8
-     ```
-   * Use `!sync` to register slash commands globally (may take up to 1 hour).
+   ```
+   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID
+     &scope=bot%20applications.commands&permissions=8
+   ```
+
+   Use `!sync` to register slash commands globally (may take up to 1 hour).
 
 ---
 
-## 📊 Star-Rating Guide
+## 📊 Star‐Rating Guide
 
 | Pos ➗ Total | Score (0–10) | Stars (out of 5) |
 | :---------: | :----------: | :--------------: |
@@ -132,13 +139,13 @@ discord_forum_rep_bot/
 ## ❓ Troubleshooting & FAQ
 
 **Q: How do I report bugs or ask questions?**
-Please [open an issue](https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues) on the repo.
+Please [open an issue](https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues).
 
-**Q: Can I contribute or request new features?**
-Absolutely! Fork the repo, submit a PR, and don’t forget to ⭐ the project if you find it helpful.
+**Q: Can I contribute or request features?**
+Absolutely—fork the repo, submit a PR, and ⭐ the project!
 
-**Q: Why are slash commands delayed?**
-Global sync can take up to **1 hour**. Use `!sync` to manually trigger registration.
+**Q: Why do my slash commands take a while?**
+Global registration can take up to **1 hour**. Use `!sync` for an immediate update.
 
 ---
 
