@@ -433,7 +433,15 @@ class Rep(commands.Cog):
             timeout_secs = 30
             ts = int(time.time()) + timeout_secs
             countdown = f"<t:{ts}:R>"
-            tos_line = config["tos_message"].replace("{timeout}", countdown)
+
+
+            raw_msg = config["tos_message"]
+            user_mention = thread.owner.mention
+            tos_line = (
+                raw_msg
+                .replace("{timeout}", countdown)
+                .replace("{user}", user_mention)
+            )
             
             view = RepTOSView(thread=thread, op_id=thread.owner_id, timeout=timeout_secs)
             await asyncio.sleep(2)
