@@ -1,0 +1,14 @@
+diff a/bot.py b/bot.py	(rejected hunks)
+@@ -62,6 +62,12 @@ async def main():
+         await bot.load_extension("cogs.post_counter")
+         await bot.load_extension("cogs.inactivity")
+         await bot.load_extension("cogs.logs")
++        # Load additional cogs for new features
++        await bot.load_extension("cogs.moderation")
++        await bot.load_extension("cogs.web_integration")
++        await bot.load_extension("cogs.enhancements")
++        await bot.load_extension("cogs.automation")
++        await bot.load_extension("cogs.sales_integration")
+         await bot.start(os.getenv("DISCORD_TOKEN"))
+ 
+ if __name__ == "__main__":

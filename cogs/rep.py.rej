@@ -1,0 +1,25 @@
+diff a/cogs/rep.py b/cogs/rep.py	(rejected hunks)
+@@ -299,7 +319,7 @@ class RepButtonView(discord.ui.View):
+             if log_ch:
+                 await log_ch.send(embed=embed)
+ 
+-        # 8) Record the rep action in the logs database
++        # 9) Record the rep action in the logs database
+         try:
+             db.add_log(
+                 thread_id=thread.id,
+@@ -310,6 +330,14 @@ class RepButtonView(discord.ui.View):
+         except Exception as e:
+             print(f"[WARN] Failed to log rep action: {e}")
+ 
++        # 10) Optionally prompt the user for tags or feedback via follow-up
++        # messages. The Enhancements cog provides slash commands for
++        # adding tags and feedback later. Here we simply remind the user.
++        await interaction.followup.send(
++            "If you'd like to add a tag or feedback for this transaction, use `/addtag` or `/feedback` within this thread.",
++            ephemeral=True
++        )
++
+     @discord.ui.button(custom_id="rep_plus", label="+ Rep", style=discord.ButtonStyle.success)
+     async def plus(self, interaction: discord.Interaction, button: discord.ui.Button):
+         await self.rep_user(interaction, '+')

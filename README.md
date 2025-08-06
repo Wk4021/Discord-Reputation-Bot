@@ -48,6 +48,40 @@ Threads are gated behind a Terms of Service prompt, early messages are auto-dele
   - Easy config via `data/config.yaml` & `assets/rep_messages.txt`.  
   - All bot messages are **Discord embeds** for best readability.
 
+  ### 🔒 Moderation & Trust System
+
+  - **Strike & Warning Tracking** – Users who let posts auto‑close receive warnings; after a threshold of warnings, a strike is issued. View counts via `/strikeinfo @user`.
+  - **Strike Appeals** – Users can submit an appeal explaining why a strike should be removed with `/appealstrike <reason>`.
+  - **Trust Score** – Mods can view an aggregate trust score based on positive/negative rep and strikes using `/trustscore @user`.
+  - **Fraud Checks** – Flag suspicious patterns (e.g. multiple reps from the same giver) with `/fraudcheck`.
+
+  ### 🌐 Web Integration (Planned)
+
+  These features require an accompanying web service. The bot includes scaffolding to integrate:
+  - **OAuth Discord Linking** – Connect a Discord account to a web profile for private stats.
+  - **Item Sales System** – Mark items as “Sold” and tie them to buyers.
+  - **Rep Analytics Dashboard** – Charts and analytics on rep history and marketplace activity.
+  - **Custom Profile Pages** – User bios, pinned threads, badges, and top sales.
+
+  ### 🤖 Bot Enhancements
+
+  - **Reminders & Pings** – Warn users 24 hours before their thread will be auto‑closed for inactivity.
+  - **Feedback & Tags** – After giving rep, optionally add a descriptive tag with `/addtag` or leave free‑form feedback with `/feedback`.
+  - **Rate Limiting** – Prevent rep spamming: you can only rep the same user once every 24 hours.
+  - **Silent Post Mode** – Placeholder command `/silentmode` to bypass TOS gating for trusted sellers (not yet implemented).
+
+  ### 🧠 Intelligence / Automation
+
+  - **Seller Suggestions** – `/suggestsellers` recommends top sellers based on positive rep totals.
+  - **Title Validation** – Automatically closes threads with banned words (e.g. “scam”, “fraud”) upon creation.
+  - **Inactivity Detection by Message Quality** – Planned: ignore low‑effort “bump” messages when tracking last activity.
+
+  ### 📦 Sales Integration
+
+  - **Sale Confirmation** – Sellers can confirm a sale with `/confirm_sale @buyer [item]`, which logs the transaction and notifies the buyer.
+  - **Transaction Logging** – All sales are recorded in the `transactions` table for future analytics and profile displays.
+  - **Escrow & Multi‑Item Threads** – Planned: moderate payment release and handle multiple items within a single thread.
+
 ---
 
 ## 📁 Project Structure

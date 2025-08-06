@@ -1,0 +1,903 @@
+From 98a7791a111d0445676d8b9f50aee47b6bcb5069 Mon Sep 17 00:00:00 2001
+From: Auto Bot <bot@example.com>
+Date: Wed, 6 Aug 2025 12:31:54 -0700
+Subject: [PATCH] Expand integrated-logging branch: add moderation, web
+ integration, enhancements, automation, and sales integration cogs; implement
+ strike appeals, trust scores, fraud checks, rate limiting, feedback and tag
+ commands, seller suggestions, title validation, sales confirmation; update DB
+ schema and README
+
+---
+ README.md                 |  34 +++++++
+ bot.py                    |   6 ++
+ cogs/automation.py        |  91 +++++++++++++++++++
+ cogs/enhancements.py      |  95 ++++++++++++++++++++
+ cogs/inactivity.py        |  33 ++++++-
+ cogs/moderation.py        | 139 +++++++++++++++++++++++++++++
+ cogs/rep.py               |  42 +++++++--
+ cogs/sales_integration.py |  71 +++++++++++++++
+ cogs/web_integration.py   |  30 +++++++
+ utils/db.py               | 182 ++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 715 insertions(+), 8 deletions(-)
+ create mode 100644 cogs/automation.py
+ create mode 100644 cogs/enhancements.py
+ create mode 100644 cogs/moderation.py
+ create mode 100644 cogs/sales_integration.py
+ create mode 100644 cogs/web_integration.py
+
+diff --git a/README.md b/README.md
+index 01c545d..8c5bd8e 100644
+--- a/README.md
++++ b/README.md
+@@ -62,6 +62,40 @@ Threads are gated behind a Terms of Service prompt, early messages are auto-dele
+   - Easy config via `data/config.yaml` & `assets/rep_messages.txt`.  
+   - All bot messages are **Discord embeds** for best readability.
+ 
++  ### 🔒 Moderation & Trust System
++
++  - **Strike & Warning Tracking** – Users who let posts auto‑close receive warnings; after a threshold of warnings, a strike is issued. View counts via `/strikeinfo @user`.
++  - **Strike Appeals** – Users can submit an appeal explaining why a strike should be removed with `/appealstrike <reason>`.
++  - **Trust Score** – Mods can view an aggregate trust score based on positive/negative rep and strikes using `/trustscore @user`.
++  - **Fraud Checks** – Flag suspicious patterns (e.g. multiple reps from the same giver) with `/fraudcheck`.
++
++  ### 🌐 Web Integration (Planned)
++
++  These features require an accompanying web service. The bot includes scaffolding to integrate:
++  - **OAuth Discord Linking** – Connect a Discord account to a web profile for private stats.
++  - **Item Sales System** – Mark items as “Sold” and tie them to buyers.
++  - **Rep Analytics Dashboard** – Charts and analytics on rep history and marketplace activity.
++  - **Custom Profile Pages** – User bios, pinned threads, badges, and top sales.
++
++  ### 🤖 Bot Enhancements
++
++  - **Reminders & Pings** – Warn users 24 hours before their thread will be auto‑closed for inactivity.
++  - **Feedback & Tags** – After giving rep, optionally add a descriptive tag with `/addtag` or leave free‑form feedback with `/feedback`.
++  - **Rate Limiting** – Prevent rep spamming: you can only rep the same user once every 24 hours.
++  - **Silent Post Mode** – Placeholder command `/silentmode` to bypass TOS gating for trusted sellers (not yet implemented).
++
++  ### 🧠 Intelligence / Automation
++
++  - **Seller Suggestions** – `/suggestsellers` recommends top sellers based on positive rep totals.
++  - **Title Validation** – Automatically closes threads with banned words (e.g. “scam”, “fraud”) upon creation.
++  - **Inactivity Detection by Message Quality** – Planned: ignore low‑effort “bump” messages when tracking last activity.
++
++  ### 📦 Sales Integration
++
++  - **Sale Confirmation** – Sellers can confirm a sale with `/confirm_sale @buyer [item]`, which logs the transaction and notifies the buyer.
++  - **Transaction Logging** – All sales are recorded in the `transactions` table for future analytics and profile displays.
++  - **Escrow & Multi‑Item Threads** – Planned: moderate payment release and handle multiple items within a single thread.
++
+ ---
+ 
+ ## 📁 Project Structure
+diff --git a/bot.py b/bot.py
+index cbeac98..af8f555 100644
+--- a/bot.py
++++ b/bot.py
+@@ -62,6 +62,12 @@ async def main():
+         await bot.load_extension("cogs.post_counter")
+         await bot.load_extension("cogs.inactivity")
+         await bot.load_extension("cogs.logs")
++        # Load additional cogs for new features
++        await bot.load_extension("cogs.moderation")
++        await bot.load_extension("cogs.web_integration")
++        await bot.load_extension("cogs.enhancements")
++        await bot.load_extension("cogs.automation")
++        await bot.load_extension("cogs.sales_integration")
+         await bot.start(os.getenv("DISCORD_TOKEN"))
+ 
+ if __name__ == "__main__":
+diff --git a/cogs/automation.py b/cogs/automation.py
+new file mode 100644
+index 0000000..af86925
+--- /dev/null
++++ b/cogs/automation.py
+@@ -0,0 +1,91 @@
++"""
++automation.py
++
++This cog serves as a placeholder for intelligence and automation
++features. Planned capabilities include advanced inactivity detection
++that ignores low-quality bump messages, suggesting top sellers to
++buyers, and validating thread titles. Currently, only a stub
++command is provided.
++"""
++
++from __future__ import annotations
++
++import discord
++from discord import app_commands
++from discord.ext import commands
++
++from utils import db
++
++
++# Words or phrases that are not allowed in thread titles. These
++# patterns are matched case-insensitively. Administrators can
++# customise this list to suit their community's rules.
++BANNED_TITLE_PATTERNS = [
++    "scam",
++    "fraud",
++    "illegal",
++    "stolen",
++]
++
++
++class IntelligenceAutomation(commands.Cog):
++    """Cog implementing intelligence/automation features."""
++
++    def __init__(self, bot: commands.Bot):
++        self.bot = bot
++
++    # ------------------------------------------------------------------
++    # Seller Suggestions
++    #
++    # This command returns a list of top sellers based on positive rep.
++    # It leverages the rep_totals table to find the highest-rated
++    # sellers and presents them as suggestions. This is a simple
++    # heuristic; more advanced recommendations could factor in
++    # category matching or recent activity.
++    @app_commands.command(name="suggestsellers", description="Suggest top sellers based on rep history")
++    async def suggest_sellers(self, interaction: discord.Interaction):
++        top = db.get_top_positive_rep(limit=5)
++        if not top:
++            return await interaction.response.send_message(
++                "No seller data available yet.",
++                ephemeral=True
++            )
++        lines = ["Here are some top sellers based on positive rep:"]
++        for rank, (user_id, pos) in enumerate(top, start=1):
++            lines.append(f"{rank}. <@{user_id}> — {pos} positive rep")
++        await interaction.response.send_message("\n".join(lines), ephemeral=True)
++
++    # ------------------------------------------------------------------
++    # Thread Title Validation
++    #
++    # Listen for new thread creation and automatically close threads
++    # whose titles contain banned patterns. This helps prevent
++    # obviously fraudulent or prohibited listings.
++    @commands.Cog.listener()
++    async def on_thread_create(self, thread: discord.Thread):
++        # Skip if this is not a forum listed in config; the Rep cog
++        # already filters for tracked forums. We'll perform a quick
++        # banned-word check regardless.
++        name_lower = thread.name.lower()
++        for pattern in BANNED_TITLE_PATTERNS:
++            if pattern in name_lower:
++                try:
++                    await thread.send(
++                        f"🚫 Thread title contains a prohibited word ('{pattern}'). This thread has been closed.",
++                    )
++                    # Archive and lock the thread
++                    await thread.edit(archived=True, locked=True)
++                    # Log the rejection
++                    db.add_log(
++                        thread_id=thread.id,
++                        user_id=thread.owner_id,
++                        action="TitleRejected",
++                        details=f"banned_word={pattern}"
++                    )
++                except Exception as e:
++                    print(f"[ERROR] Failed to close thread with banned title: {e}")
++                break
++
++
++async def setup(bot: commands.Bot):
++    await bot.add_cog(IntelligenceAutomation(bot))
+\ No newline at end of file
+diff --git a/cogs/enhancements.py b/cogs/enhancements.py
+new file mode 100644
+index 0000000..0300074
+--- /dev/null
++++ b/cogs/enhancements.py
+@@ -0,0 +1,95 @@
++"""
++enhancements.py
++
++This cog contains placeholder implementations for miscellaneous bot
++enhancements such as reminder pings, feedback prompts, rep tags,
++rate limiting, and silent post mode. These features are planned
++future improvements and are currently stubbed out.
++"""
++
++from __future__ import annotations
++
++import discord
++from discord import app_commands
++from discord.ext import commands
++
++from utils import db
++
++
++class BotEnhancements(commands.Cog):
++    """Cog scaffolding various bot enhancements."""
++
++    def __init__(self, bot: commands.Bot):
++        self.bot = bot
++
++    @app_commands.command(name="silentmode", description="Toggle silent post mode (placeholder)")
++    async def silent_mode(self, interaction: discord.Interaction):
++        """
++        Toggle silent post mode for the invoking user. In the future
++        this command will allow trusted sellers to bypass the TOS
++        gating flow for faster posting.
++        """
++        await interaction.response.send_message(
++            "🔕 Silent post mode is not yet implemented.",
++            ephemeral=True
++        )
++
++    # ------------------------------------------------------------------
++    # Rep Tagging
++    #
++    # After giving rep, users may optionally attach a descriptive tag
++    # summarising the transaction (e.g. "Fast shipping", "Great
++    # communication"). This command must be invoked within the thread
++    # where the rep occurred. It records the tag in the database via
++    # utils.db.add_rep_tag.
++    @app_commands.command(name="addtag", description="Add a descriptive tag to your recent rep in this thread")
++    @app_commands.describe(tag="A short description of the interaction (e.g. 'Fast shipping')")
++    async def add_tag(self, interaction: discord.Interaction, tag: str):
++        # Ensure command is invoked within a thread
++        thread = interaction.channel
++        if not isinstance(thread, discord.Thread):
++            return await interaction.response.send_message(
++                "This command must be used within a marketplace thread.",
++                ephemeral=True
++            )
++        # Determine the receiver (thread owner) and record the tag
++        receiver_id = thread.owner_id
++        db.add_rep_tag(interaction.user.id, receiver_id, thread.id, tag)
++        db.add_log(thread_id=thread.id, user_id=interaction.user.id, action="TagAdded", details=tag)
++        await interaction.response.send_message(
++            f"🏷️ Added tag '{tag}' for <@{receiver_id}>.",
++            ephemeral=True
++        )
++
++    # ------------------------------------------------------------------
++    # Feedback Messages
++    #
++    # Users may provide additional textual feedback about their
++    # transaction. This command records the feedback in the logs. Like
++    # addtag, it must be invoked within the relevant thread.
++    @app_commands.command(name="feedback", description="Leave optional feedback about this transaction")
++    @app_commands.describe(message="Your feedback message (max 200 characters)")
++    async def feedback(self, interaction: discord.Interaction, message: str):
++        if len(message) > 200:
++            return await interaction.response.send_message(
++                "Feedback message must be 200 characters or fewer.",
++                ephemeral=True
++            )
++        thread = interaction.channel
++        if not isinstance(thread, discord.Thread):
++            return await interaction.response.send_message(
++                "This command must be used within a marketplace thread.",
++                ephemeral=True
++            )
++        db.add_log(thread_id=thread.id, user_id=interaction.user.id, action="Feedback", details=message)
++        await interaction.response.send_message(
++            "💬 Thank you for your feedback!",
++            ephemeral=True
++        )
++
++    # Future placeholders: rate limiting, reminder pings, rep tags, feedback prompts
++    # Additional commands and listeners will be added here when these features are implemented.
++
++
++async def setup(bot: commands.Bot):
++    await bot.add_cog(BotEnhancements(bot))
+\ No newline at end of file
+diff --git a/cogs/inactivity.py b/cogs/inactivity.py
+index 1e3f1bb..bc4e6a4 100644
+--- a/cogs/inactivity.py
++++ b/cogs/inactivity.py
+@@ -38,6 +38,10 @@ class InactivityMonitor(commands.Cog):
+         # Kick off the background task
+         self._task: asyncio.Task = self.bot.loop.create_task(self._check_inactivity_loop())
+ 
++        # Keep track of threads we've already sent a reminder to so we
++        # don't spam users with multiple pings. Resets on bot restart.
++        self._warned_threads: set[int] = set()
++
+     async def _check_inactivity_loop(self) -> None:
+         """
+         Periodically scan all tracked threads and auto-close any that
+@@ -46,8 +50,28 @@ class InactivityMonitor(commands.Cog):
+         """
+         await self.bot.wait_until_ready()
+         while not self.bot.is_closed():
+-            cutoff = time.time() - INACTIVITY_TIMEOUT_SECONDS
++            now = time.time()
++            cutoff = now - INACTIVITY_TIMEOUT_SECONDS
++            warn_cutoff = now - (INACTIVITY_TIMEOUT_SECONDS - 24 * 60 * 60)
+             inactive_ids = db.get_inactive_threads(cutoff)
++            # Also fetch threads that will become inactive within next 24h
++            soon_inactive_ids = db.get_inactive_threads(warn_cutoff)
++            for thread_id in soon_inactive_ids:
++                # skip if already closed or already warned
++                if thread_id in inactive_ids or thread_id in self._warned_threads:
++                    continue
++                thread = self.bot.get_channel(thread_id)
++                if isinstance(thread, discord.Thread) and not thread.archived:
++                    try:
++                        # Send a warning ping 24h before closure
++                        await thread.send(
++                            "⏰ This thread will be auto-closed in 24 hours due to inactivity. Please reply if you wish to keep it open."
++                        )
++                        self._warned_threads.add(thread_id)
++                        db.add_log(thread_id=thread_id, user_id=thread.owner_id, action="InactivityWarning", details="24h warning sent")
++                    except Exception as e:
++                        print(f"[WARN] Failed to send inactivity warning for thread {thread_id}: {e}")
++
+             for thread_id in inactive_ids:
+                 thread = self.bot.get_channel(thread_id)
+                 # Only act on Thread objects that are still open
+@@ -117,8 +141,15 @@ class InactivityMonitor(commands.Cog):
+         a thread. This keeps inactivity tracking accurate across cogs.
+         """
+         if isinstance(message.channel, discord.Thread) and not message.author.bot:
++            # Ignore low-quality bump messages when updating activity
++            content = (message.content or "").strip().lower()
++            if content in {"bump", "bumping", ".", "+1", "bump!", "bump?"}:
++                return
+             try:
+                 db.set_thread_activity(message.channel.id, message.created_at.timestamp())
++                # Reset warning flag so a new inactivity reminder can be sent later
++                if message.channel.id in self._warned_threads:
++                    self._warned_threads.discard(message.channel.id)
+             except Exception as e:
+                 print(f"[WARN] Failed to update thread activity: {e}")
+ 
+diff --git a/cogs/moderation.py b/cogs/moderation.py
+new file mode 100644
+index 0000000..e6e2a5b
+--- /dev/null
++++ b/cogs/moderation.py
+@@ -0,0 +1,139 @@
++"""
++moderation.py
++
++This cog lays the groundwork for moderation and trust-related
++functionality. It currently contains placeholder implementations for
++features such as strike appeals and trust score calculation. When
++fully implemented, this cog will handle reputation decay, fraud
++detection, and other moderation tools.
++"""
++
++from __future__ import annotations
++
++import discord
++from discord import app_commands
++from discord.ext import commands
++
++from utils import db
++import sqlite3
++
++
++class Moderation(commands.Cog):
++    """Cog implementing moderation & trust system features."""
++
++    def __init__(self, bot: commands.Bot):
++        self.bot = bot
++
++    # ------------------------------------------------------------------
++    # Strike Appeals
++    #
++    # Users can submit an appeal for a strike they've received. The
++    # appeal will be logged in the database with a pending status. Mods
++    # can later review appeals and update their status via a separate
++    # moderation interface or DB call.
++    @app_commands.command(name="appealstrike", description="Submit an appeal for a strike you have received")
++    @app_commands.describe(reason="Explain why you believe your strike should be removed")
++    async def appeal_strike(self, interaction: discord.Interaction, reason: str):
++        """
++        Create a strike appeal. The user must provide a reason. The
++        appeal is stored in the database with a pending status. A
++        confirmation message with the appeal ID is returned.
++        """
++        appeal_id = db.submit_strike_appeal(interaction.user.id, reason)
++        # log this action
++        db.add_log(None, interaction.user.id, "strike_appeal_submitted", f"appeal_id={appeal_id}")
++        await interaction.response.send_message(
++            f"✅ Your strike appeal has been submitted (ID: {appeal_id}). A moderator will review it shortly.",
++            ephemeral=True
++        )
++
++    # ------------------------------------------------------------------
++    # Trust Score
++    #
++    # The trust score aggregates a user's rep, warning/strike counts,
++    # and future metrics to give a snapshot of their reliability. For
++    # now it simply computes positive minus negative rep and subtracts
++    # points for each strike.
++    @app_commands.command(name="trustscore", description="View a user's trust score")
++    @app_commands.describe(user="The user whose trust score you want to view")
++    async def trust_score(self, interaction: discord.Interaction, user: discord.Member):
++        """
++        Compute a simple trust score: (positive - negative) - (strikes * 5).
++        This is a placeholder metric that will evolve over time. The
++        command displays the breakdown and the resulting score.
++        """
++        pos, neg = db.get_user_rep(user.id)
++        warnings, strikes = db.get_user_strikes(user.id)
++        score = (pos - neg) - (strikes * 5)
++        embed = discord.Embed(title=f"Trust Score for {user.display_name}", colour=discord.Colour.blue())
++        embed.add_field(name="Positive Rep", value=str(pos), inline=True)
++        embed.add_field(name="Negative Rep", value=str(neg), inline=True)
++        embed.add_field(name="Warnings", value=str(warnings), inline=True)
++        embed.add_field(name="Strikes", value=str(strikes), inline=True)
++        embed.add_field(name="Score", value=str(score), inline=False)
++        await interaction.response.send_message(embed=embed, ephemeral=True)
++
++    # ------------------------------------------------------------------
++    # Fraud Detection
++    #
++    # A simple fraud detection command that flags users who receive
++    # multiple reps from the same giver in a short time or have large
++    # positive deltas. This is a naive implementation to demonstrate
++    # the concept; more sophisticated analysis should be performed
++    # offline or in a separate service.
++    @app_commands.command(name="fraudcheck", description="Flag suspicious rep patterns for a user")
++    @app_commands.describe(user="Optional: specific user to check (defaults to all)")
++    async def fraud_check(self, interaction: discord.Interaction, user: discord.Member | None = None):
++        """
++        Check for suspicious rep patterns. If a user is specified, only
++        that user is analysed. Otherwise, the bot performs a simple
++        scan across all users and reports those with potential fraud.
++        """
++        conn = sqlite3.connect(db.DB_PATH)
++        c = conn.cursor()
++        report_lines = []
++        if user:
++            # Count how many reps each giver has given this receiver
++            c.execute(
++                "SELECT giver_id, COUNT(*) FROM rep WHERE receiver_id = ? GROUP BY giver_id HAVING COUNT(*) > 1",
++                (user.id,),
++            )
++            suspicious = c.fetchall()
++            if suspicious:
++                report_lines.append(f"User {user.display_name} has multiple reps from the same giver:")
++                for giver_id, count in suspicious:
++                    report_lines.append(f"- {giver_id} -> {count} reps")
++            else:
++                report_lines.append(f"No suspicious patterns found for {user.display_name}.")
++        else:
++            # Check all receivers for repeated givers
++            c.execute(
++                "SELECT receiver_id, giver_id, COUNT(*) FROM rep GROUP BY receiver_id, giver_id HAVING COUNT(*) > 2"
++            )
++            rows = c.fetchall()
++            if rows:
++                report_lines.append("Users with multiple reps from the same giver:")
++                for receiver_id, giver_id, count in rows:
++                    report_lines.append(f"- Receiver {receiver_id} from Giver {giver_id}: {count} reps")
++            else:
++                report_lines.append("No suspicious patterns found.")
++        conn.close()
++        await interaction.response.send_message("\n".join(report_lines), ephemeral=True)
++
++    # ------------------------------------------------------------------
++    # Strike & Warning Status
++    #
++    @app_commands.command(name="strikeinfo", description="View warnings and strikes for a user")
++    @app_commands.describe(user="The user whose strike status you want to view")
++    async def strike_info(self, interaction: discord.Interaction, user: discord.Member):
++        """
++        Display the number of warnings and strikes a user has accumulated.
++        """
++        warnings, strikes = db.get_user_strikes(user.id)
++        await interaction.response.send_message(
++            f"{user.display_name} has {warnings} warning(s) and {strikes} strike(s).", 
++            ephemeral=True
++        )
++
++async def setup(bot: commands.Bot):
++    await bot.add_cog(Moderation(bot))
+\ No newline at end of file
+diff --git a/cogs/rep.py b/cogs/rep.py
+index e6aa1aa..690b35b 100644
+--- a/cogs/rep.py
++++ b/cogs/rep.py
+@@ -254,7 +254,26 @@ class RepButtonView(discord.ui.View):
+                 "You need to interact in the thread first.", ephemeral=True
+             )
+ 
+-        # 3) Record the rep
++        # 3) Enforce rate limiting: prevent the giver from repping the same
++        # receiver more than once per 24 hours across all threads. We scan
++        # the logs for recent RepGiven actions with matching receiver.
++        # If a recent entry is found (within 86,400 seconds), deny.
++        try:
++            logs = db.get_logs_by_user(interaction.user.id, limit=100)
++            now = time.time()
++            for _, l_thread_id, l_user_id, l_action, l_details, l_ts in logs:
++                if l_action == "RepGiven" and f"rep to {op_id}" in (l_details or ""):
++                    if now - l_ts < 86400:  # 24h
++                        return await interaction.response.send_message(
++                            "⏱️ You can only rep the same user once every 24 hours.",
++                            ephemeral=True
++                        )
++        except Exception as e:
++            print(f"[WARN] Rate limit check failed: {e}")
++
++        # 4) Record the rep in the rep & rep_totals tables. The add_rep
++        # helper returns False if the same giver already rated this
++        # receiver in this thread.
+         success = db.add_rep(
+             interaction.user.id,  # giver
+             op_id,                # receiver
+@@ -263,10 +282,11 @@ class RepButtonView(discord.ui.View):
+         )
+         if not success:
+             return await interaction.response.send_message(
+-                "You've already repped in this thread.", ephemeral=True
++                "You've already repped in this thread.",
++                ephemeral=True
+             )
+ 
+-        # 4) Confirmation embed
++        # 5) Confirmation embed
+         embed = discord.Embed(
+             title="✅ Rep Given",
+             description=(
+@@ -277,7 +297,7 @@ class RepButtonView(discord.ui.View):
+         )
+         await interaction.response.send_message(embed=embed, ephemeral=True)
+ 
+-        # 5) Update thread log
++        # 6) Update thread log
+         rep_cog = interaction.client.get_cog("Rep")
+         if rep_cog:
+             await rep_cog._update_thread_log(
+@@ -288,10 +308,10 @@ class RepButtonView(discord.ui.View):
+                 )
+             )
+ 
+-        # 6) Refresh the in‐thread rep UI (star rating + GIF)
++        # 7) Refresh the in‐thread rep UI (star rating + GIF)
+         # await post_rep_ui(thread, op_id)
+ 
+-        # 7) Send to log channel if configured
++        # 8) Send to log channel if configured
+         config = load_config()
+         log_ch_id = config.get("log_channel")
+         if log_ch_id:
+@@ -299,7 +319,7 @@ class RepButtonView(discord.ui.View):
+             if log_ch:
+                 await log_ch.send(embed=embed)
+ 
+-        # 8) Record the rep action in the logs database
++        # 9) Record the rep action in the logs database
+         try:
+             db.add_log(
+                 thread_id=thread.id,
+@@ -310,6 +330,14 @@ class RepButtonView(discord.ui.View):
+         except Exception as e:
+             print(f"[WARN] Failed to log rep action: {e}")
+ 
++        # 10) Optionally prompt the user for tags or feedback via follow-up
++        # messages. The Enhancements cog provides slash commands for
++        # adding tags and feedback later. Here we simply remind the user.
++        await interaction.followup.send(
++            "If you'd like to add a tag or feedback for this transaction, use `/addtag` or `/feedback` within this thread.",
++            ephemeral=True
++        )
++
+     @discord.ui.button(custom_id="rep_plus", label="+ Rep", style=discord.ButtonStyle.success)
+     async def plus(self, interaction: discord.Interaction, button: discord.ui.Button):
+         await self.rep_user(interaction, '+')
+diff --git a/cogs/sales_integration.py b/cogs/sales_integration.py
+new file mode 100644
+index 0000000..d8d672d
+--- /dev/null
++++ b/cogs/sales_integration.py
+@@ -0,0 +1,71 @@
++"""
++sales_integration.py
++
++This cog adds commands for simple sales confirmation and logging. It
++introduces a `/confirm_sale` slash command that sellers can use to
++record a completed transaction with a buyer. Transactions are stored
++in the `transactions` table via utils.db.log_transaction. Future
++enhancements could include escrow management and multi-item threads.
++"""
++
++from __future__ import annotations
++
++import discord
++from discord import app_commands
++from discord.ext import commands
++
++from utils import db
++
++
++class SalesIntegration(commands.Cog):
++    """Cog implementing basic sales confirmation features."""
++
++    def __init__(self, bot: commands.Bot):
++        self.bot = bot
++
++    @app_commands.command(name="confirm_sale", description="Confirm a sale with a buyer and log it in the database")
++    @app_commands.describe(buyer="The user who purchased your item", item="Optional description of the item sold")
++    async def confirm_sale(self, interaction: discord.Interaction, buyer: discord.Member, item: str | None = None):
++        """
++        Confirm a sale. This command must be invoked by the seller within
++        the marketplace thread where the transaction occurred. It records
++        the sale in the `transactions` table and logs the event. A
++        confirmation message is sent to both parties.
++        """
++        thread = interaction.channel
++        if not isinstance(thread, discord.Thread):
++            return await interaction.response.send_message(
++                "This command must be used inside the relevant thread.",
++                ephemeral=True
++            )
++        seller_id = interaction.user.id
++        buyer_id = buyer.id
++        trans_id = db.log_transaction(
++            thread_id=thread.id,
++            seller_id=seller_id,
++            buyer_id=buyer_id,
++            item_name=item,
++            status="confirmed",
++        )
++        db.add_log(
++            thread_id=thread.id,
++            user_id=seller_id,
++            action="SaleConfirmed",
++            details=f"transaction_id={trans_id}, buyer={buyer_id}, item={item or ''}"
++        )
++        # Notify both seller and buyer privately
++        await interaction.response.send_message(
++            f"💼 Sale confirmed with {buyer.mention}! Transaction ID: {trans_id}.",
++            ephemeral=True
++        )
++        try:
++            await buyer.send(
++                f"🧾 {interaction.user.display_name} has confirmed a sale with you in thread '{thread.name}'. Transaction ID: {trans_id}."
++            )
++        except Exception:
++            # ignore if DM fails
++            pass
++
++
++async def setup(bot: commands.Bot):
++    await bot.add_cog(SalesIntegration(bot))
+\ No newline at end of file
+diff --git a/cogs/web_integration.py b/cogs/web_integration.py
+new file mode 100644
+index 0000000..1968d2a
+--- /dev/null
++++ b/cogs/web_integration.py
+@@ -0,0 +1,30 @@
++"""
++web_integration.py
++
++This cog is a placeholder for features that bridge the Discord bot
++with an external web application. Planned capabilities include
++OAuth-based account linking, item sales management, analytics
++dashboards, and custom profile pages. Implementation of these
++features will require a backend service and is outside the scope of
++this demo.
++"""
++
++from __future__ import annotations
++
++import discord
++from discord.ext import commands
++
++
++class WebIntegration(commands.Cog):
++    """Cog scaffolding for web integration features."""
++
++    def __init__(self, bot: commands.Bot):
++        self.bot = bot
++
++    # No commands are currently implemented. All functionality lives on
++    # the external website and will hook into this cog in the future.
++    pass
++
++
++async def setup(bot: commands.Bot):
++    await bot.add_cog(WebIntegration(bot))
+\ No newline at end of file
+diff --git a/utils/db.py b/utils/db.py
+index 5523b02..6384419 100644
+--- a/utils/db.py
++++ b/utils/db.py
+@@ -93,6 +93,57 @@ def init_db():
+         )
+         """
+     )
++
++    # Table to record strike appeals submitted by users. Moderators
++    # can review these appeals and update the status field to
++    # indicate whether an appeal was accepted or rejected. Status
++    # values should be one of: 'pending', 'accepted', 'rejected'.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS strike_appeals (
++            id        INTEGER PRIMARY KEY AUTOINCREMENT,
++            user_id   INTEGER,
++            reason    TEXT,
++            status    TEXT DEFAULT 'pending',
++            timestamp REAL
++        )
++        """
++    )
++
++    # Store optional tags associated with individual rep actions. Each
++    # entry links a giver/receiver/thread trio with a short tag such
++    # as "Fast shipping" or "Great communication". A single rep may
++    # have multiple tags, so there is no uniqueness constraint.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS rep_tags (
++            id          INTEGER PRIMARY KEY AUTOINCREMENT,
++            giver_id    INTEGER,
++            receiver_id INTEGER,
++            thread_id   INTEGER,
++            tag         TEXT
++        )
++        """
++    )
++
++    # Track sales transactions recorded via the bot. A transaction
++    # associates a thread with a seller and buyer, along with an
++    # optional item description and a status value (e.g. 'confirmed',
++    # 'pending', 'escrow', 'completed'). These records can be
++    # displayed on user profile pages or used for analytics.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS transactions (
++            id        INTEGER PRIMARY KEY AUTOINCREMENT,
++            thread_id INTEGER,
++            seller_id INTEGER,
++            buyer_id  INTEGER,
++            item_name TEXT,
++            status    TEXT DEFAULT 'confirmed',
++            timestamp REAL
++        )
++        """
++    )
+     conn.commit()
+     conn.close()
+ 
+@@ -312,3 +363,134 @@ def get_user_strikes(user_id: int) -> tuple[int, int]:
+     row = c.fetchone()
+     conn.close()
+     return row if row else (0, 0)
++
++# -----------------------------------------------------------------------------
++#  Additional helper functions for new features
++#
++#  These functions support rep tags, strike appeals, and sales transaction
++#  logging. They mirror the style of earlier helpers: simple, direct access
++#  to the SQLite database with minimal business logic. Complex behaviour
++#  should be implemented in the corresponding cogs.
++
++def add_rep_tag(giver_id: int, receiver_id: int, thread_id: int, tag: str) -> None:
++    """
++    Record an optional tag for a rep interaction. This helper does not
++    enforce any uniqueness; multiple tags may be attached to the same
++    rep. Tags can be used to summarise the nature of the transaction
++    (e.g. "Fast shipping", "Great communication").
++
++    Parameters:
++        giver_id (int): The Discord ID of the user giving rep.
++        receiver_id (int): The Discord ID of the user receiving rep.
++        thread_id (int): The ID of the thread where the rep was given.
++        tag (str): A short descriptive tag.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO rep_tags (giver_id, receiver_id, thread_id, tag)"
++        " VALUES (?, ?, ?, ?)",
++        (giver_id, receiver_id, thread_id, tag),
++    )
++    conn.commit()
++    conn.close()
++
++
++def get_rep_tags_by_receiver(receiver_id: int) -> list[tuple[str, int]]:
++    """
++    Retrieve a list of (tag, count) for the specified receiver. This
++    aggregates tags across all threads and givers, returning how many
++    times each tag has been used to describe the receiver.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "SELECT tag, COUNT(*) FROM rep_tags WHERE receiver_id = ? GROUP BY tag",
++        (receiver_id,),
++    )
++    rows = c.fetchall()
++    conn.close()
++    return [(row[0], row[1]) for row in rows]
++
++
++def submit_strike_appeal(user_id: int, reason: str) -> int:
++    """
++    Create a new strike appeal for the given user. The appeal's status
++    will be set to 'pending' and the current timestamp recorded. The
++    function returns the ID of the newly created appeal for tracking.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO strike_appeals (user_id, reason, status, timestamp)"
++        " VALUES (?, ?, 'pending', ?)",
++        (user_id, reason, time.time()),
++    )
++    appeal_id = c.lastrowid
++    conn.commit()
++    conn.close()
++    return appeal_id
++
++
++def get_strike_appeals(user_id: int | None = None) -> list[tuple]:
++    """
++    Fetch strike appeals. If user_id is provided, only appeals
++    submitted by that user are returned; otherwise, all appeals are
++    returned. Each entry is a tuple (id, user_id, reason, status, timestamp).
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    if user_id is None:
++        c.execute("SELECT id, user_id, reason, status, timestamp FROM strike_appeals ORDER BY timestamp DESC")
++        rows = c.fetchall()
++    else:
++        c.execute(
++            "SELECT id, user_id, reason, status, timestamp FROM strike_appeals"
++            " WHERE user_id = ? ORDER BY timestamp DESC",
++            (user_id,),
++        )
++        rows = c.fetchall()
++    conn.close()
++    return rows
++
++
++def update_strike_appeal_status(appeal_id: int, status: str) -> None:
++    """
++    Update the status of a strike appeal. Status should be one of
++    'pending', 'accepted', or 'rejected'. If an invalid status is
++    provided, the update is ignored.
++    """
++    if status not in {"pending", "accepted", "rejected"}:
++        return
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "UPDATE strike_appeals SET status = ? WHERE id = ?",
++        (status, appeal_id),
++    )
++    conn.commit()
++    conn.close()
++
++
++def log_transaction(thread_id: int, seller_id: int, buyer_id: int, item_name: str | None = None, status: str = "confirmed") -> int:
++    """
++    Record a sales transaction. Returns the ID of the newly inserted
++    transaction. The timestamp is recorded at insertion time.
++    Parameters:
++        thread_id (int): The thread associated with the sale.
++        seller_id (int): The user ID of the seller.
++        buyer_id (int): The user ID of the buyer.
++        item_name (str|None): Optional descriptive name of the item sold.
++        status (str): A status descriptor such as 'confirmed', 'escrow', etc.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO transactions (thread_id, seller_id, buyer_id, item_name, status, timestamp)"
++        " VALUES (?, ?, ?, ?, ?, ?)",
++        (thread_id, seller_id, buyer_id, item_name, status, time.time()),
++    )
++    trans_id = c.lastrowid
++    conn.commit()
++    conn.close()
++    return trans_id
+-- 
+2.39.5
+

@@ -240,7 +240,26 @@ class RepButtonView(discord.ui.View):
                 "You need to interact in the thread first.", ephemeral=True
             )
 
-        # 3) Record the rep
+        # 3) Enforce rate limiting: prevent the giver from repping the same
+        # receiver more than once per 24 hours across all threads. We scan
+        # the logs for recent RepGiven actions with matching receiver.
+        # If a recent entry is found (within 86,400 seconds), deny.
+        try:
+            logs = db.get_logs_by_user(interaction.user.id, limit=100)
+            now = time.time()
+            for _, l_thread_id, l_user_id, l_action, l_details, l_ts in logs:
+                if l_action == "RepGiven" and f"rep to {op_id}" in (l_details or ""):
+                    if now - l_ts < 86400:  # 24h
+                        return await interaction.response.send_message(
+                            "⏱️ You can only rep the same user once every 24 hours.",
+                            ephemeral=True
+                        )
+        except Exception as e:
+            print(f"[WARN] Rate limit check failed: {e}")
+
+        # 4) Record the rep in the rep & rep_totals tables. The add_rep
+        # helper returns False if the same giver already rated this
+        # receiver in this thread.
         success = db.add_rep(
             interaction.user.id,  # giver
             op_id,                # receiver
@@ -249,10 +268,11 @@ class RepButtonView(discord.ui.View):
         )
         if not success:
             return await interaction.response.send_message(
-                "You've already repped in this thread.", ephemeral=True
+                "You've already repped in this thread.",
+                ephemeral=True
             )
 
-        # 4) Confirmation embed
+        # 5) Confirmation embed
         embed = discord.Embed(
             title="✅ Rep Given",
             description=(
@@ -263,7 +283,7 @@ class RepButtonView(discord.ui.View):
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        # 5) Update thread log
+        # 6) Update thread log
         rep_cog = interaction.client.get_cog("Rep")
         if rep_cog:
             await rep_cog._update_thread_log(
@@ -274,10 +294,10 @@ class RepButtonView(discord.ui.View):
                 )
             )
 
-        # 6) Refresh the in‐thread rep UI (star rating + GIF)
+        # 7) Refresh the in‐thread rep UI (star rating + GIF)
         # await post_rep_ui(thread, op_id)
 
-        # 7) Send to log channel if configured
+        # 8) Send to log channel if configured
         config = load_config()
         log_ch_id = config.get("log_channel")
         if log_ch_id:

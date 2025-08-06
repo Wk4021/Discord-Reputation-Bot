@@ -1,0 +1,194 @@
+diff a/utils/db.py b/utils/db.py	(rejected hunks)
+@@ -93,6 +93,57 @@ def init_db():
+         )
+         """
+     )
++
++    # Table to record strike appeals submitted by users. Moderators
++    # can review these appeals and update the status field to
++    # indicate whether an appeal was accepted or rejected. Status
++    # values should be one of: 'pending', 'accepted', 'rejected'.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS strike_appeals (
++            id        INTEGER PRIMARY KEY AUTOINCREMENT,
++            user_id   INTEGER,
++            reason    TEXT,
++            status    TEXT DEFAULT 'pending',
++            timestamp REAL
++        )
++        """
++    )
++
++    # Store optional tags associated with individual rep actions. Each
++    # entry links a giver/receiver/thread trio with a short tag such
++    # as "Fast shipping" or "Great communication". A single rep may
++    # have multiple tags, so there is no uniqueness constraint.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS rep_tags (
++            id          INTEGER PRIMARY KEY AUTOINCREMENT,
++            giver_id    INTEGER,
++            receiver_id INTEGER,
++            thread_id   INTEGER,
++            tag         TEXT
++        )
++        """
++    )
++
++    # Track sales transactions recorded via the bot. A transaction
++    # associates a thread with a seller and buyer, along with an
++    # optional item description and a status value (e.g. 'confirmed',
++    # 'pending', 'escrow', 'completed'). These records can be
++    # displayed on user profile pages or used for analytics.
++    c.execute(
++        """
++        CREATE TABLE IF NOT EXISTS transactions (
++            id        INTEGER PRIMARY KEY AUTOINCREMENT,
++            thread_id INTEGER,
++            seller_id INTEGER,
++            buyer_id  INTEGER,
++            item_name TEXT,
++            status    TEXT DEFAULT 'confirmed',
++            timestamp REAL
++        )
++        """
++    )
+     conn.commit()
+     conn.close()
+ 
+@@ -312,3 +363,134 @@ def get_user_strikes(user_id: int) -> tuple[int, int]:
+     row = c.fetchone()
+     conn.close()
+     return row if row else (0, 0)
++
++# -----------------------------------------------------------------------------
++#  Additional helper functions for new features
++#
++#  These functions support rep tags, strike appeals, and sales transaction
++#  logging. They mirror the style of earlier helpers: simple, direct access
++#  to the SQLite database with minimal business logic. Complex behaviour
++#  should be implemented in the corresponding cogs.
++
++def add_rep_tag(giver_id: int, receiver_id: int, thread_id: int, tag: str) -> None:
++    """
++    Record an optional tag for a rep interaction. This helper does not
++    enforce any uniqueness; multiple tags may be attached to the same
++    rep. Tags can be used to summarise the nature of the transaction
++    (e.g. "Fast shipping", "Great communication").
++
++    Parameters:
++        giver_id (int): The Discord ID of the user giving rep.
++        receiver_id (int): The Discord ID of the user receiving rep.
++        thread_id (int): The ID of the thread where the rep was given.
++        tag (str): A short descriptive tag.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO rep_tags (giver_id, receiver_id, thread_id, tag)"
++        " VALUES (?, ?, ?, ?)",
++        (giver_id, receiver_id, thread_id, tag),
++    )
++    conn.commit()
++    conn.close()
++
++
++def get_rep_tags_by_receiver(receiver_id: int) -> list[tuple[str, int]]:
++    """
++    Retrieve a list of (tag, count) for the specified receiver. This
++    aggregates tags across all threads and givers, returning how many
++    times each tag has been used to describe the receiver.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "SELECT tag, COUNT(*) FROM rep_tags WHERE receiver_id = ? GROUP BY tag",
++        (receiver_id,),
++    )
++    rows = c.fetchall()
++    conn.close()
++    return [(row[0], row[1]) for row in rows]
++
++
++def submit_strike_appeal(user_id: int, reason: str) -> int:
++    """
++    Create a new strike appeal for the given user. The appeal's status
++    will be set to 'pending' and the current timestamp recorded. The
++    function returns the ID of the newly created appeal for tracking.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO strike_appeals (user_id, reason, status, timestamp)"
++        " VALUES (?, ?, 'pending', ?)",
++        (user_id, reason, time.time()),
++    )
++    appeal_id = c.lastrowid
++    conn.commit()
++    conn.close()
++    return appeal_id
++
++
++def get_strike_appeals(user_id: int | None = None) -> list[tuple]:
++    """
++    Fetch strike appeals. If user_id is provided, only appeals
++    submitted by that user are returned; otherwise, all appeals are
++    returned. Each entry is a tuple (id, user_id, reason, status, timestamp).
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    if user_id is None:
++        c.execute("SELECT id, user_id, reason, status, timestamp FROM strike_appeals ORDER BY timestamp DESC")
++        rows = c.fetchall()
++    else:
++        c.execute(
++            "SELECT id, user_id, reason, status, timestamp FROM strike_appeals"
++            " WHERE user_id = ? ORDER BY timestamp DESC",
++            (user_id,),
++        )
++        rows = c.fetchall()
++    conn.close()
++    return rows
++
++
++def update_strike_appeal_status(appeal_id: int, status: str) -> None:
++    """
++    Update the status of a strike appeal. Status should be one of
++    'pending', 'accepted', or 'rejected'. If an invalid status is
++    provided, the update is ignored.
++    """
++    if status not in {"pending", "accepted", "rejected"}:
++        return
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "UPDATE strike_appeals SET status = ? WHERE id = ?",
++        (status, appeal_id),
++    )
++    conn.commit()
++    conn.close()
++
++
++def log_transaction(thread_id: int, seller_id: int, buyer_id: int, item_name: str | None = None, status: str = "confirmed") -> int:
++    """
++    Record a sales transaction. Returns the ID of the newly inserted
++    transaction. The timestamp is recorded at insertion time.
++    Parameters:
++        thread_id (int): The thread associated with the sale.
++        seller_id (int): The user ID of the seller.
++        buyer_id (int): The user ID of the buyer.
++        item_name (str|None): Optional descriptive name of the item sold.
++        status (str): A status descriptor such as 'confirmed', 'escrow', etc.
++    """
++    conn = sqlite3.connect(DB_PATH)
++    c = conn.cursor()
++    c.execute(
++        "INSERT INTO transactions (thread_id, seller_id, buyer_id, item_name, status, timestamp)"
++        " VALUES (?, ?, ?, ?, ?, ?)",
++        (thread_id, seller_id, buyer_id, item_name, status, time.time()),
++    )
++    trans_id = c.lastrowid
++    conn.commit()
++    conn.close()
++    return trans_id
