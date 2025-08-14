@@ -7,6 +7,15 @@ import discord
 from discord.ext import commands
 import yaml
 from datetime import datetime
+from dotenv import load_dotenv
+import threading
+import time
+import requests
+import hmac
+import hashlib
+
+# Load environment variables
+load_dotenv()
 
 # Add parent directory to path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,23 +26,97 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 
 # Configuration
 CONFIG_PATH = '../data/config.yaml'
-GUILD_ID = None  # Will be set from config
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD_ID = int(os.getenv('GUILD_ID', 0)) if os.getenv('GUILD_ID', '').replace('YOUR_GUILD_ID_HERE', '').strip() else None
+
+# Global Discord client
+discord_client = None
+guild = None
 
 def load_config():
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-def get_discord_client():
-    """Initialize Discord client for API calls"""
-    intents = discord.Intents.default()
-    intents.message_content = True
-    intents.guilds = True
-    intents.members = True
-    return commands.Bot(command_prefix="!", intents=intents)
+def sync_members_via_api():
+    """Sync Discord members using REST API calls"""
+    if not DISCORD_TOKEN or not GUILD_ID:
+        return {'success': False, 'error': 'Discord token or guild ID not configured'}
+    
+    headers = {
+        'Authorization': f'Bot {DISCORD_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        print("🔄 Fetching Discord server members via API...")
+        
+        # Get guild info
+        guild_response = requests.get(f'https://discord.com/api/v10/guilds/{GUILD_ID}', headers=headers)
+        if guild_response.status_code != 200:
+            return {'success': False, 'error': f'Failed to fetch guild info: {guild_response.status_code}'}
+        
+        guild_data = guild_response.json()
+        
+        # Get all members (this might require pagination for large servers)
+        members_response = requests.get(f'https://discord.com/api/v10/guilds/{GUILD_ID}/members?limit=1000', headers=headers)
+        if members_response.status_code != 200:
+            return {'success': False, 'error': f'Failed to fetch members: {members_response.status_code}'}
+        
+        members = members_response.json()
+        current_member_ids = set()
+        synced_count = 0
+        
+        for member_data in members:
+            user = member_data['user']
+            current_member_ids.add(int(user['id']))
+            
+            # Build avatar URL
+            avatar_url = None
+            if user.get('avatar'):
+                avatar_url = f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png"
+            
+            # Get display name (nickname or global_name or username)
+            display_name = member_data.get('nick') or user.get('global_name') or user['username']
+            
+            # Update user in database
+            db.upsert_user(
+                user_id=int(user['id']),
+                username=user['username'],
+                display_name=display_name,
+                avatar_url=avatar_url,
+                joined_at=member_data.get('joined_at'),
+                is_in_server=True
+            )
+            synced_count += 1
+        
+        # Mark users who left the server
+        all_db_users = db.get_all_users()
+        left_count = 0
+        for user in all_db_users:
+            if user['is_in_server'] and user['user_id'] not in current_member_ids:
+                db.mark_user_left(user['user_id'])
+                left_count += 1
+        
+        print(f"✅ Synced {synced_count} members, marked {left_count} as left")
+        return {
+            'success': True, 
+            'synced': synced_count, 
+            'left': left_count,
+            'guild_name': guild_data.get('name', 'Unknown'),
+            'total_members': len(members)
+        }
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ API request error: {e}")
+        return {'success': False, 'error': str(e)}
+    except Exception as e:
+        print(f"❌ Sync error: {e}")
+        return {'success': False, 'error': str(e)}
 
 def get_user_stats(user_id):
     """Get comprehensive user statistics"""
-    conn = sqlite3.connect('../' + db.DB_PATH)
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
     # Get review stats
@@ -111,36 +194,167 @@ def get_user_stats(user_id):
     }
 
 def get_all_users_with_activity():
-    """Get all users who have either given or received reviews"""
-    conn = sqlite3.connect('../' + db.DB_PATH)
+    """Get all users from the database with their review stats"""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
-    # Get all unique user IDs from reviews
+    # Get all users from the users table with their stats
     c.execute("""
-        SELECT DISTINCT receiver_id as user_id FROM reviews
-        UNION
-        SELECT DISTINCT giver_id as user_id FROM reviews
-        ORDER BY user_id
+        SELECT 
+            u.user_id,
+            u.username,
+            u.display_name,
+            u.avatar_url,
+            u.is_in_server,
+            u.left_at,
+            COALESCE(AVG(r_received.rating), 0) as avg_rating,
+            COALESCE(COUNT(r_received.id), 0) as total_reviews,
+            COALESCE(COUNT(r_given.id), 0) as reviews_given
+        FROM users u
+        LEFT JOIN reviews r_received ON u.user_id = r_received.receiver_id
+        LEFT JOIN reviews r_given ON u.user_id = r_given.giver_id
+        GROUP BY u.user_id, u.username, u.display_name, u.avatar_url, u.is_in_server, u.left_at
+        ORDER BY u.is_in_server DESC, COALESCE(AVG(r_received.rating), 0) DESC, u.username ASC
     """)
     
-    user_ids = [row[0] for row in c.fetchall()]
     users_data = []
-    
-    for user_id in user_ids:
-        stats = get_user_stats(user_id)
+    for row in c.fetchall():
         users_data.append({
-            'user_id': user_id,
-            'avg_rating': stats['avg_rating'],
-            'total_reviews': stats['total_reviews'],
-            'reviews_given': stats['reviews_given']
+            'user_id': row[0],
+            'username': row[1],
+            'display_name': row[2],
+            'avatar_url': row[3],
+            'is_in_server': bool(row[4]),
+            'left_at': row[5],
+            'avg_rating': float(row[6]),
+            'total_reviews': row[7],
+            'reviews_given': row[8]
         })
     
     conn.close()
-    return sorted(users_data, key=lambda x: x['avg_rating'], reverse=True)
+    return users_data
+
+def get_homepage_stats():
+    """Get overall statistics for the homepage"""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # Get total reviews and average rating
+    c.execute("SELECT COUNT(*), AVG(rating) FROM reviews")
+    total_reviews, avg_rating = c.fetchone()
+    total_reviews = total_reviews or 0
+    avg_rating = avg_rating or 0.0
+    
+    # Get active users (users who have given or received reviews)
+    c.execute("""
+        SELECT COUNT(DISTINCT user_id) FROM (
+            SELECT giver_id as user_id FROM reviews
+            UNION
+            SELECT receiver_id as user_id FROM reviews
+        )
+    """)
+    active_users = c.fetchone()[0] or 0
+    
+    conn.close()
+    
+    return {
+        'total_reviews': total_reviews,
+        'avg_rating': avg_rating,
+        'active_users': active_users
+    }
+
+def get_guild_info():
+    """Get Discord guild information via API"""
+    if not DISCORD_TOKEN or not GUILD_ID:
+        return None
+    
+    headers = {
+        'Authorization': f'Bot {DISCORD_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.get(f'https://discord.com/api/v10/guilds/{GUILD_ID}', headers=headers)
+        if response.status_code == 200:
+            guild_data = response.json()
+            icon_url = None
+            if guild_data.get('icon'):
+                icon_url = f"https://cdn.discordapp.com/icons/{GUILD_ID}/{guild_data['icon']}.png"
+            
+            return {
+                'name': guild_data.get('name'),
+                'member_count': guild_data.get('approximate_member_count', 0),
+                'icon_url': icon_url,
+                'description': guild_data.get('description')
+            }
+    except Exception as e:
+        print(f"Failed to fetch guild info: {e}")
+    
+    return None
+
+def get_recent_reviews(limit=6):
+    """Get recent reviews for homepage"""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT 
+            r.rating,
+            r.created_at,
+            giver.username as giver_name,
+            giver.display_name as giver_display,
+            giver.avatar_url as giver_avatar,
+            receiver.username as receiver_name,
+            receiver.display_name as receiver_display,
+            receiver.avatar_url as receiver_avatar
+        FROM reviews r
+        LEFT JOIN users giver ON r.giver_id = giver.user_id
+        LEFT JOIN users receiver ON r.receiver_id = receiver.user_id
+        ORDER BY r.created_at DESC
+        LIMIT ?
+    """, (limit,))
+    
+    recent_reviews = []
+    for row in c.fetchall():
+        recent_reviews.append({
+            'rating': row[0],
+            'created_at': row[1],
+            'giver_name': row[2] or f'User {row[0]}',
+            'giver_avatar': row[4],
+            'receiver_name': row[5] or f'User {row[0]}',
+            'receiver_avatar': row[7]
+        })
+    
+    conn.close()
+    return recent_reviews
 
 @app.route('/')
 def index():
-    """Main page showing all users"""
+    """Homepage with server information and stats"""
+    config = load_config()
+    
+    # Get overall stats
+    stats = get_homepage_stats()
+    
+    # Get guild information
+    guild_info = get_guild_info()
+    
+    # Get recent reviews
+    recent_reviews = get_recent_reviews(6)
+    
+    return render_template('homepage.html', 
+                         server_name=config.get('server_name'),
+                         server_invite=config.get('server_invite'),
+                         guild_info=guild_info,
+                         stats=stats,
+                         recent_reviews=recent_reviews)
+
+@app.route('/users')
+def users():
+    """Users page showing all community members"""
     users = get_all_users_with_activity()
     return render_template('index.html', users=users)
 
@@ -153,16 +367,35 @@ def user_profile(user_id):
 @app.route('/api/discord_user/<int:user_id>')
 def get_discord_user_info(user_id):
     """API endpoint to get Discord user information"""
-    # This would require a running Discord bot instance
-    # For now, return mock data structure
-    return jsonify({
-        'id': user_id,
-        'username': f'User{user_id}',
-        'display_name': f'Display User {user_id}',
-        'avatar_url': f'https://cdn.discordapp.com/embed/avatars/{user_id % 5}.png',
-        'banner_url': None,
-        'status': 'Unknown'
-    })
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("""
+        SELECT username, display_name, avatar_url, is_in_server
+        FROM users WHERE user_id = ?
+    """, (user_id,))
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        return jsonify({
+            'id': user_id,
+            'username': result[0],
+            'display_name': result[1] or result[0],
+            'avatar_url': result[2] or f'https://cdn.discordapp.com/embed/avatars/{user_id % 5}.png',
+            'banner_url': None,
+            'status': 'Online' if result[3] else 'Offline'
+        })
+    else:
+        # Fallback for users not in database
+        return jsonify({
+            'id': user_id,
+            'username': f'User{user_id}',
+            'display_name': f'User {user_id}',
+            'avatar_url': f'https://cdn.discordapp.com/embed/avatars/{user_id % 5}.png',
+            'banner_url': None,
+            'status': 'Unknown'
+        })
 
 @app.route('/api/thread_info/<int:thread_id>')
 def get_thread_info(thread_id):
@@ -171,11 +404,33 @@ def get_thread_info(thread_id):
     return jsonify({
         'id': thread_id,
         'name': f'Thread {thread_id}',
-        'url': f'https://discord.com/channels/GUILD_ID/CHANNEL_ID/{thread_id}',
+        'url': f'https://discord.com/channels/{GUILD_ID or "GUILD_ID"}/CHANNEL_ID/{thread_id}',
         'created_at': '2024-01-01T00:00:00Z',
         'archived': False,
         'owner_id': 123456789
     })
+
+@app.route('/api/sync_members', methods=['POST'])
+def sync_members():
+    """API endpoint to manually sync Discord members"""
+    try:
+        result = sync_members_via_api()
+        if result['success']:
+            return jsonify({
+                'status': 'success', 
+                'message': f'Synced {result["synced"]} members',
+                'data': result
+            })
+        else:
+            return jsonify({
+                'status': 'error', 
+                'message': result['error']
+            }), 400
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 def generate_star_display(rating):
     """Convert numeric rating to star display"""
@@ -209,7 +464,24 @@ def format_date_filter(date_str):
     except:
         return date_str
 
+# Template context processor
+@app.context_processor
+def inject_config():
+    return {'config': load_config()}
+
 if __name__ == '__main__':
     print("🌐 Starting Discord Review Dashboard...")
     print("📊 Dashboard will be available at http://localhost:5000")
+    
+    # Initialize database
+    db.init_db()
+    
+    # Check Discord configuration
+    if DISCORD_TOKEN and GUILD_ID:
+        print("🤖 Discord integration configured (using REST API)")
+        print("   Use the 'Sync' button to fetch server members")
+    else:
+        print("⚠️  Discord integration disabled (missing token or guild ID)")
+        print("   Add DISCORD_TOKEN and GUILD_ID to .env file to enable")
+    
     app.run(debug=True, host='0.0.0.0', port=5000)

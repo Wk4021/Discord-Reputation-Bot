@@ -18,7 +18,7 @@
 <div class="row">
     <div class="col-12">
         <div class="card mb-4">
-            <div class="discord-banner" id="userBanner" style="height: 200px; background: linear-gradient(135deg, #7289da 0%, #99aab5 100%); position: relative;">
+            <div class="discord-banner" id="userBanner" style="height: 200px; position: relative; background: linear-gradient(135deg, #7289da 0%, #99aab5 100%);">
                 <div class="banner-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); height: 100px;"></div>
             </div>
             <div class="card-body" style="margin-top: -50px; position: relative; z-index: 1;">
@@ -93,6 +93,43 @@
                 </div>
                 <h3 class="card-title">{{ stats.thread_ids|length }}</h3>
                 <p class="card-text text-muted">Active Posts</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discord Profile Info -->
+<div class="row mb-4" id="discordInfo" style="display: block;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fab fa-discord me-2"></i>
+                    Discord Profile
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6 mb-3">
+                        <h6><i class="fas fa-award me-2"></i>Badges</h6>
+                        <div id="badgesContainer">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-award fa-2x mb-2"></i>
+                                <p>No badges earned</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6 mb-3">
+                        <h6><i class="fas fa-crown me-2"></i>Server Roles</h6>
+                        <div id="rolesContainer">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-user fa-2x mb-2"></i>
+                                <p>No special roles</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -273,9 +310,17 @@ function loadUserProfile() {
             
             // Update banner if available
             if (data.banner_url) {
+                console.log('Setting banner:', data.banner_url);
                 document.getElementById('userBanner').style.backgroundImage = `url(${data.banner_url})`;
                 document.getElementById('userBanner').style.backgroundSize = 'cover';
                 document.getElementById('userBanner').style.backgroundPosition = 'center';
+            } else if (data.accent_color) {
+                console.log('Setting accent color:', data.accent_color);
+                // Use accent color as fallback
+                const hexColor = '#' + data.accent_color.toString(16).padStart(6, '0');
+                document.getElementById('userBanner').style.background = hexColor;
+            } else {
+                console.log('No banner or accent color found for user', data.id);
             }
             
             // Update status
@@ -299,6 +344,9 @@ function loadUserProfile() {
                         element.innerHTML = '<i class="fas fa-circle text-secondary"></i> Offline';
                 }
             });
+            
+            // Load enhanced profile data
+            loadEnhancedProfileData(userId);
         })
         .catch(error => {
             console.error('Error loading user profile:', error);
@@ -367,6 +415,91 @@ function loadThreadInfo() {
                 };
             });
     });
+}
+
+function loadEnhancedProfileData(userId) {
+    fetch(`/api/discord_user/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Enhanced profile data loaded:', { badges: data.badges, roles: data.roles });
+            
+            // Display badges
+            const badgesContainer = document.getElementById('badgesContainer');
+            if (data.badges && data.badges.length > 0) {
+                badgesContainer.innerHTML = '<div class="d-flex flex-wrap gap-2"></div>';
+                const badgesList = badgesContainer.querySelector('.d-flex');
+                
+                data.badges.forEach(badge => {
+                    const badgeElement = document.createElement('span');
+                    badgeElement.className = 'badge d-flex align-items-center gap-1';
+                    
+                    // Remove any default styling that might cause conflicts
+                    badgeElement.style.border = 'none';
+                    badgeElement.style.boxShadow = 'none';
+                    badgeElement.style.outline = 'none';
+                    badgeElement.style.backgroundColor = badge.color || '#5865F2';
+                    badgeElement.style.color = 'white';
+                    
+                    badgeElement.innerHTML = `
+                        <span style="font-size: 0.8rem;">${badge.emoji}</span>
+                        <span>${badge.name}</span>
+                    `;
+                    badgesList.appendChild(badgeElement);
+                });
+            } else {
+                badgesContainer.innerHTML = `
+                    <div class="text-center text-muted p-3">
+                        <i class="fas fa-award mb-2"></i>
+                        <p class="mb-0 small">No badges earned</p>
+                    </div>
+                `;
+            }
+            
+            // Display roles
+            const rolesContainer = document.getElementById('rolesContainer');
+            if (data.roles && data.roles.length > 0) {
+                rolesContainer.innerHTML = '<div class="d-flex flex-wrap gap-2"></div>';
+                const rolesList = rolesContainer.querySelector('.d-flex');
+                
+                data.roles.forEach(role => {
+                    const roleElement = document.createElement('span');
+                    roleElement.className = 'badge d-flex align-items-center gap-1';
+                    
+                    // Remove any default styling that might cause conflicts
+                    roleElement.style.border = 'none';
+                    roleElement.style.boxShadow = 'none';
+                    roleElement.style.outline = 'none';
+                    
+                    if (role.color && role.color !== '#000000' && role.color !== '#000') {
+                        roleElement.style.backgroundColor = role.color;
+                        roleElement.style.color = 'white';
+                    } else {
+                        // Use our theme variable instead of Bootstrap class
+                        roleElement.style.backgroundColor = 'var(--text-secondary)';
+                        roleElement.style.color = 'white';
+                    }
+                    
+                    roleElement.innerHTML = `
+                        <span>${role.hoisted ? '📌' : '👤'}</span>
+                        <span>${role.name}</span>
+                    `;
+                    rolesList.appendChild(roleElement);
+                });
+            } else {
+                rolesContainer.innerHTML = `
+                    <div class="text-center text-muted p-3">
+                        <i class="fas fa-user mb-2"></i>
+                        <p class="mb-0 small">No special roles</p>
+                    </div>
+                `;
+            }
+            
+            // Always show the Discord info section since we have profile data
+            document.getElementById('discordInfo').style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading enhanced profile data:', error);
+        });
 }
 </script>
 {% endblock %}

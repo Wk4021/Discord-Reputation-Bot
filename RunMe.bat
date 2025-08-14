@@ -155,21 +155,54 @@ echo Choose what to run:
 echo   [1] Discord Bot (Main bot functionality)
 echo   [2] Web Dashboard (User interface at http://localhost:5000)
 echo   [3] Both (Bot + Dashboard in separate windows)
-echo   [4] Install/Update Requirements
+echo   [4] Bot + Integrated Dashboard (Recommended)
+echo   [5] Install/Update Requirements
 echo   [0] Exit
 echo.
-set /p choice="Enter your choice (0-4): "
+set /p choice="Enter your choice (0-5): "
 
 REM 3) Handle user choice
 if "%choice%"=="0" goto :exit
 if "%choice%"=="1" goto :run_bot
 if "%choice%"=="2" goto :run_dashboard
 if "%choice%"=="3" goto :run_both
-if "%choice%"=="4" goto :install_requirements
+if "%choice%"=="4" goto :run_integrated
+if "%choice%"=="5" goto :install_requirements
 
-echo Invalid choice. Please enter 0, 1, 2, 3, or 4.
+echo Invalid choice. Please enter 0, 1, 2, 3, 4, or 5.
 echo.
 goto :menu
+
+:run_integrated
+echo.
+echo ═══════════════════════════════════════════════════════════
+echo           Starting Bot with Integrated Dashboard
+echo ═══════════════════════════════════════════════════════════
+echo.
+
+REM Activate virtual environment
+if exist ".venv\Scripts\activate.bat" (
+    echo Activating .venv...
+    call ".venv\Scripts\activate.bat"
+) else if exist "venv\Scripts\activate.bat" (
+    echo Activating venv...
+    call "venv\Scripts\activate.bat"
+) else (
+    echo No virtualenv found, running global python.
+)
+
+echo Starting integrated bot with web dashboard...
+echo Discord bot will handle reviews, forums, and user interactions.
+echo Web dashboard will be available at: http://localhost:5000
+echo.
+echo Press Ctrl+C to stop both services.
+echo.
+python bot.py
+
+echo.
+echo Services have stopped. Press any key to close this window.
+pause
+goto :exit
 
 :exit
 echo.

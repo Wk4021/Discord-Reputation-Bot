@@ -22,6 +22,25 @@ def init_db():
         )
     """)
     
+    # Users table to store all server members
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id     INTEGER PRIMARY KEY,
+            username    TEXT NOT NULL,
+            display_name TEXT,
+            avatar_url  TEXT,
+            banner_url  TEXT,
+            accent_color INTEGER,
+            public_flags INTEGER,
+            joined_at   TIMESTAMP,
+            left_at     TIMESTAMP NULL,
+            is_in_server BOOLEAN DEFAULT TRUE,
+            roles       TEXT,  -- JSON string of role data
+            badges      TEXT,  -- JSON string of badge data
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     # Keep rep and rep_totals for backward compatibility, but they'll be deprecated
     c.execute("""
         CREATE TABLE IF NOT EXISTS rep (
@@ -191,3 +210,79 @@ def has_user_reviewed(giver_id: int, receiver_id: int, thread_id: int) -> bool:
     result = c.fetchone()
     conn.close()
     return result is not None
+
+# User management functions
+
+def upsert_user(user_id: int, username: str, display_name: str = None, avatar_url: str = None, 
+                banner_url: str = None, accent_color: int = None, public_flags: int = None,
+                joined_at: str = None, is_in_server: bool = True, roles: str = None, badges: str = None) -> None:
+    """
+    Insert or update a user in the users table.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO users (user_id, username, display_name, avatar_url, banner_url, accent_color, 
+                          public_flags, joined_at, is_in_server, roles, badges, last_updated) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id) DO UPDATE SET
+            username = ?,
+            display_name = ?,
+            avatar_url = ?,
+            banner_url = ?,
+            accent_color = ?,
+            public_flags = ?,
+            is_in_server = ?,
+            roles = ?,
+            badges = ?,
+            last_updated = CURRENT_TIMESTAMP
+    """, (user_id, username, display_name, avatar_url, banner_url, accent_color, public_flags,
+          joined_at, is_in_server, roles, badges, username, display_name, avatar_url, 
+          banner_url, accent_color, public_flags, is_in_server, roles, badges))
+    conn.commit()
+    conn.close()
+
+def mark_user_left(user_id: int) -> None:
+    """
+    Mark a user as having left the server.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE users 
+        SET is_in_server = FALSE, left_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+    """, (user_id,))
+    conn.commit()
+    conn.close()
+
+def get_all_users() -> List[dict]:
+    """
+    Get all users from the database, including those who left the server.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT user_id, username, display_name, avatar_url, banner_url, accent_color, 
+               public_flags, joined_at, left_at, is_in_server, roles, badges
+        FROM users 
+        ORDER BY is_in_server DESC, username ASC
+    """)
+    users = []
+    for row in c.fetchall():
+        users.append({
+            'user_id': row[0],
+            'username': row[1],
+            'display_name': row[2],
+            'avatar_url': row[3],
+            'banner_url': row[4],
+            'accent_color': row[5],
+            'public_flags': row[6],
+            'joined_at': row[7],
+            'left_at': row[8],
+            'is_in_server': bool(row[9]),
+            'roles': row[10],
+            'badges': row[11]
+        })
+    conn.close()
+    return users

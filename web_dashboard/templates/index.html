@@ -1,19 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}User List - Discord Review Dashboard{% endblock %}
+{% block title %}Community Members - Discord Review Dashboard{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1><i class="fas fa-users"></i> Community Members</h1>
-            <div class="input-group" style="max-width: 300px;">
-                <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
-                <span class="input-group-text">
-                    <i class="fas fa-search"></i>
-                </span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" id="syncMembersBtn" title="Quick sync - basic info and roles">
+                    <i class="fas fa-sync-alt"></i> Quick Sync
+                </button>
+                <button class="btn btn-outline-primary" id="syncEnhancedBtn" title="Enhanced sync - includes banners and badges (slower)">
+                    <i class="fas fa-magic"></i> Enhanced
+                </button>
+                <div class="input-group" style="max-width: 300px;">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                </div>
             </div>
         </div>
+
+        <!-- Pagination Controls -->
+        {% if pagination %}
+        <div class="pagination-controls">
+            <div class="items-per-page">
+                <label for="perPageSelect">Show:</label>
+                <select class="form-select form-select-sm" id="perPageSelect" style="width: auto;">
+                    <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
+                    <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
+                </select>
+                <span>per page</span>
+            </div>
+            
+            <div class="pagination-info">
+                Showing {{ pagination.start_index }}-{{ pagination.end_index }} of {{ pagination.total }} members
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -45,22 +73,42 @@
                     <div class="tab-pane fade show active" id="all" role="tabpanel">
                         <div class="row" id="userGrid">
                             {% for user in users %}
-                            <div class="col-lg-4 col-md-6 col-sm-12 mb-4 user-card" data-search-terms="{{ user.user_id }}">
-                                <div class="card h-100 shadow-sm">
+                            <div class="col-lg-4 col-md-6 col-sm-12 mb-4 user-card" data-search-terms="{{ user.user_id }} {{ user.username }} {{ user.display_name or '' }}">
+                                <div class="card h-100 shadow-sm{% if not user.is_in_server %} border-secondary{% endif %}">
                                     <div class="card-body">
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="avatar-container me-3">
-                                                <img src="" alt="Avatar" class="rounded-circle discord-avatar" 
+                                            <div class="avatar-container me-3 position-relative">
+                                                <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" 
+                                                     alt="Avatar" class="rounded-circle discord-avatar" 
                                                      data-user-id="{{ user.user_id }}" style="width: 50px; height: 50px;" 
                                                      onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                                                {% if not user.is_in_server %}
+                                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill" style="background-color: var(--text-secondary); color: white; border: none;" title="Left server">
+                                                    <i class="fas fa-sign-out-alt"></i>
+                                                </span>
+                                                {% endif %}
                                             </div>
                                             <div class="flex-grow-1">
                                                 <h5 class="card-title mb-1 discord-username" data-user-id="{{ user.user_id }}">
-                                                    User {{ user.user_id }}
+                                                    {{ user.display_name or user.username }}
+                                                    {% if not user.is_in_server %}<small class="text-muted">(Left)</small>{% endif %}
+                                                    {% if user.badges %}
+                                                        {% for badge in user.badges %}
+                                                            <span title="{{ badge.name }}" style="font-size: 0.8rem;">{{ badge.emoji }}</span>
+                                                        {% endfor %}
+                                                    {% endif %}
                                                 </h5>
-                                                <small class="text-muted discord-discriminator" data-user-id="{{ user.user_id }}">
-                                                    Loading...
-                                                </small>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <small class="text-muted discord-discriminator" data-user-id="{{ user.user_id }}">
+                                                        @{{ user.username }}
+                                                    </small>
+                                                    {% if user.roles %}
+                                                        {% set top_role = user.roles[0] %}
+                                                        <span class="badge badge-sm" style="font-size: 0.65rem; border: none; box-shadow: none; outline: none; {% if top_role.color and top_role.color != '#000000' %}background-color: {{ top_role.color }}; color: white;{% else %}background-color: var(--text-secondary); color: white;{% endif %}">
+                                                            {{ top_role.name }}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                         
@@ -111,7 +159,7 @@
                     <!-- Top Rated Tab -->
                     <div class="tab-pane fade" id="top-rated" role="tabpanel">
                         <div class="row">
-                            {% for user in users[:10] if user.total_reviews > 0 %}
+                            {% for user in users if user.total_reviews > 0 and loop.index <= 10 %}
                             <div class="col-lg-6 col-md-12 mb-3">
                                 <div class="card">
                                     <div class="card-body">
@@ -119,12 +167,14 @@
                                             <div class="rank-badge me-3">
                                                 <span class="badge bg-primary">#{{ loop.index }}</span>
                                             </div>
-                                            <img src="" alt="Avatar" class="rounded-circle discord-avatar me-3" 
+                                            <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" 
+                                                 alt="Avatar" class="rounded-circle discord-avatar me-3" 
                                                  data-user-id="{{ user.user_id }}" style="width: 40px; height: 40px;" 
                                                  onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-0 discord-username" data-user-id="{{ user.user_id }}">
-                                                    User {{ user.user_id }}
+                                                    {{ user.display_name or user.username }}
+                                                    {% if not user.is_in_server %}<small class="text-muted">(Left)</small>{% endif %}
                                                 </h6>
                                                 <small class="text-muted">{{ user.avg_rating|star_display }}</small>
                                             </div>
@@ -141,7 +191,7 @@
                     <!-- Most Active Tab -->
                     <div class="tab-pane fade" id="most-active" role="tabpanel">
                         <div class="row">
-                            {% for user in users|sort(attribute='reviews_given', reverse=true)[:10] if user.reviews_given > 0 %}
+                            {% for user in users|sort(attribute='reviews_given', reverse=true)|list if user.reviews_given > 0 and loop.index <= 10 %}
                             <div class="col-lg-6 col-md-12 mb-3">
                                 <div class="card">
                                     <div class="card-body">
@@ -149,12 +199,14 @@
                                             <div class="rank-badge me-3">
                                                 <span class="badge bg-success">#{{ loop.index }}</span>
                                             </div>
-                                            <img src="" alt="Avatar" class="rounded-circle discord-avatar me-3" 
+                                            <img src="{{ user.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" 
+                                                 alt="Avatar" class="rounded-circle discord-avatar me-3" 
                                                  data-user-id="{{ user.user_id }}" style="width: 40px; height: 40px;" 
                                                  onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                                             <div class="flex-grow-1">
                                                 <h6 class="mb-0 discord-username" data-user-id="{{ user.user_id }}">
-                                                    User {{ user.user_id }}
+                                                    {{ user.display_name or user.username }}
+                                                    {% if not user.is_in_server %}<small class="text-muted">(Left)</small>{% endif %}
                                                 </h6>
                                                 <small class="text-muted">{{ user.reviews_given }} reviews given</small>
                                             </div>
@@ -184,30 +236,373 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Pagination Navigation -->
+{% if pagination and pagination.total_pages > 1 %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="User pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="?page=1&per_page={{ pagination.per_page }}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ pagination.prev_num or 1 }}&per_page={{ pagination.per_page }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                
+                <!-- Page numbers -->
+                {% for page_num in range(1, pagination.total_pages + 1) %}
+                    {% if page_num <= 2 or page_num >= pagination.total_pages - 1 or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ page_num }}&per_page={{ pagination.per_page }}">{{ page_num }}</a>
+                        </li>
+                    {% elif page_num == 3 and pagination.page > 5 %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% elif page_num == pagination.total_pages - 2 and pagination.page < pagination.total_pages - 4 %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ pagination.next_num or pagination.total_pages }}&per_page={{ pagination.per_page }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Search functionality
+// Search functionality - server-side search with debouncing
+let searchTimeout;
 document.getElementById('searchInput').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const userCards = document.querySelectorAll('.user-card');
+    const searchTerm = this.value.trim();
     
-    userCards.forEach(card => {
-        const searchTerms = card.getAttribute('data-search-terms').toLowerCase();
-        const username = card.querySelector('.discord-username').textContent.toLowerCase();
-        
-        if (searchTerms.includes(searchTerm) || username.includes(searchTerm)) {
-            card.style.display = '';
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+    
+    // Debounce search requests (wait 300ms after user stops typing)
+    searchTimeout = setTimeout(() => {
+        if (searchTerm.length >= 1) {
+            performSearch(searchTerm);
         } else {
-            card.style.display = 'none';
+            // If search is cleared, reload the page to show all users
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.delete('search');
+            if (urlParams.toString()) {
+                window.location.search = urlParams.toString();
+            } else {
+                window.location.href = window.location.pathname;
+            }
         }
-    });
+    }, 300);
 });
+
+function performSearch(query, page = 1, perPage = null) {
+    if (!perPage) {
+        const urlParams = new URLSearchParams(window.location.search);
+        perPage = urlParams.get('per_page') || '25';
+    }
+    
+    // Show loading state
+    const userGrid = document.getElementById('userGrid');
+    const paginationControls = document.querySelector('.pagination-controls');
+    const paginationNav = document.querySelector('nav[aria-label="User pagination"]');
+    
+    userGrid.innerHTML = '<div class="col-12 text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Searching...</p></div>';
+    
+    if (paginationControls) paginationControls.style.display = 'none';
+    if (paginationNav) paginationNav.style.display = 'none';
+    
+    // Perform search
+    fetch(`/api/search_users?q=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`)
+        .then(response => response.json())
+        .then(data => {
+            displaySearchResults(data.users, data.pagination, query);
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            userGrid.innerHTML = '<div class="col-12 text-center py-4 text-danger"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Search failed. Please try again.</p></div>';
+        });
+}
+
+function displaySearchResults(users, pagination, query) {
+    const userGrid = document.getElementById('userGrid');
+    const paginationControls = document.querySelector('.pagination-controls');
+    const paginationNav = document.querySelector('nav[aria-label="User pagination"]');
+    
+    if (users.length === 0) {
+        userGrid.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-search fa-5x text-muted mb-3"></i>
+                <h3 class="text-muted">No results found</h3>
+                <p class="text-muted">No users found matching "${query}"</p>
+                <button class="btn btn-primary" onclick="clearSearch()">Show All Users</button>
+            </div>
+        `;
+        if (paginationControls) paginationControls.style.display = 'none';
+        if (paginationNav) paginationNav.style.display = 'none';
+        return;
+    }
+    
+    // Generate user cards HTML
+    let usersHTML = '';
+    users.forEach(user => {
+        usersHTML += generateUserCardHTML(user);
+    });
+    
+    userGrid.innerHTML = usersHTML;
+    
+    // Update pagination info
+    if (pagination && paginationControls) {
+        const paginationInfo = paginationControls.querySelector('.pagination-info');
+        if (paginationInfo) {
+            paginationInfo.textContent = `Showing ${pagination.start_index}-${pagination.end_index} of ${pagination.total} search results`;
+        }
+        paginationControls.style.display = 'flex';
+        
+        // Update per-page dropdown to maintain search
+        const perPageSelect = document.getElementById('perPageSelect');
+        if (perPageSelect) {
+            perPageSelect.onchange = function() {
+                performSearch(query, 1, this.value);
+            };
+        }
+    }
+    
+    // Update pagination navigation for search
+    if (pagination && pagination.total_pages > 1 && paginationNav) {
+        updateSearchPagination(pagination, query);
+        paginationNav.style.display = 'block';
+    } else if (paginationNav) {
+        paginationNav.style.display = 'none';
+    }
+    
+    // Load Discord data for search results
+    loadDiscordUserData();
+}
+
+function generateUserCardHTML(user) {
+    const isInServer = user.is_in_server;
+    const leftBadge = !isInServer ? `
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill" style="background-color: var(--text-secondary); color: white; border: none;" title="Left server">
+            <i class="fas fa-sign-out-alt"></i>
+        </span>
+    ` : '';
+    
+    const badges = user.badges ? user.badges.map(badge => `<span title="${badge.name}" style="font-size: 0.8rem;">${badge.emoji}</span>`).join('') : '';
+    const topRole = user.roles && user.roles.length > 0 ? user.roles[0] : null;
+    const roleBadge = topRole ? `
+        <span class="badge badge-sm" style="font-size: 0.65rem; border: none; box-shadow: none; outline: none; ${topRole.color && topRole.color !== '#000000' ? `background-color: ${topRole.color}; color: white;` : 'background-color: var(--text-secondary); color: white;'}">
+            ${topRole.name}
+        </span>
+    ` : '';
+    
+    return `
+        <div class="col-lg-4 col-md-6 col-sm-12 mb-4 user-card" data-search-terms="${user.user_id} ${user.username} ${user.display_name || ''}">
+            <div class="card h-100 shadow-sm${!isInServer ? ' border-secondary' : ''}">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="avatar-container me-3 position-relative">
+                            <img src="${user.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                                 alt="Avatar" class="rounded-circle discord-avatar" 
+                                 data-user-id="${user.user_id}" style="width: 50px; height: 50px;" 
+                                 onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            ${leftBadge}
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-1 discord-username" data-user-id="${user.user_id}">
+                                ${user.display_name || user.username}
+                                ${!isInServer ? '<small class="text-muted">(Left)</small>' : ''}
+                                ${badges}
+                            </h5>
+                            <div class="d-flex align-items-center gap-2">
+                                <small class="text-muted discord-discriminator" data-user-id="${user.user_id}">
+                                    @${user.username}
+                                </small>
+                                ${roleBadge}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-row mb-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-value">${user.avg_rating.toFixed(1)}</div>
+                                    <div class="stat-label">Rating</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-value">${user.total_reviews}</div>
+                                    <div class="stat-label">Reviews</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-item">
+                                    <div class="stat-value">${user.reviews_given}</div>
+                                    <div class="stat-label">Given</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="rating-display mb-3">
+                        ${user.total_reviews > 0 ? `<span class="stars">${generateStarDisplay(user.avg_rating)}</span>` : '<span class="text-muted">No reviews yet</span>'}
+                    </div>
+                    
+                    <div class="d-grid">
+                        <a href="/user/${user.user_id}" class="btn btn-primary">
+                            <i class="fas fa-user"></i> View Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateStarDisplay(rating) {
+    if (rating === 0) return "No rating";
+    
+    const starRating = rating / 2;
+    const fullStars = Math.floor(starRating);
+    const halfStar = (starRating - fullStars) >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+    
+    let stars = "⭐".repeat(fullStars);
+    if (halfStar) stars += "✨";
+    stars += "☆".repeat(emptyStars);
+    
+    return `${stars} (${rating.toFixed(1)}/10)`;
+}
+
+function updateSearchPagination(pagination, query) {
+    const paginationNav = document.querySelector('nav[aria-label="User pagination"] .pagination');
+    if (!paginationNav) return;
+    
+    let paginationHTML = `
+        <li class="page-item ${!pagination.has_prev ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="performSearch('${query}', 1, ${pagination.per_page}); return false;" aria-label="First">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item ${!pagination.has_prev ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="performSearch('${query}', ${pagination.prev_num || 1}, ${pagination.per_page}); return false;" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+    `;
+    
+    // Page numbers
+    for (let pageNum = 1; pageNum <= pagination.total_pages; pageNum++) {
+        if (pageNum <= 2 || pageNum >= pagination.total_pages - 1 || (pageNum >= pagination.page - 2 && pageNum <= pagination.page + 2)) {
+            paginationHTML += `
+                <li class="page-item ${pageNum === pagination.page ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="performSearch('${query}', ${pageNum}, ${pagination.per_page}); return false;">${pageNum}</a>
+                </li>
+            `;
+        } else if (pageNum === 3 && pagination.page > 5) {
+            paginationHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        } else if (pageNum === pagination.total_pages - 2 && pagination.page < pagination.total_pages - 4) {
+            paginationHTML += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    paginationHTML += `
+        <li class="page-item ${!pagination.has_next ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="performSearch('${query}', ${pagination.next_num || pagination.total_pages}, ${pagination.per_page}); return false;" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        <li class="page-item ${!pagination.has_next ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="performSearch('${query}', ${pagination.total_pages}, ${pagination.per_page}); return false;" aria-label="Last">
+                <span aria-hidden="true">&raquo;&raquo;</span>
+            </a>
+        </li>
+    `;
+    
+    paginationNav.innerHTML = paginationHTML;
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    window.location.href = window.location.pathname;
+}
+
+// Sync members functionality
+function performSync(enhanced = false) {
+    const btn = enhanced ? document.getElementById('syncEnhancedBtn') : document.getElementById('syncMembersBtn');
+    const otherBtn = enhanced ? document.getElementById('syncMembersBtn') : document.getElementById('syncEnhancedBtn');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = enhanced ? '<i class="fas fa-spinner fa-spin"></i> Enhanced Syncing...' : '<i class="fas fa-spinner fa-spin"></i> Quick Syncing...';
+    btn.disabled = true;
+    otherBtn.disabled = true;
+    
+    fetch('/api/sync_members', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enhanced: enhanced })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            btn.innerHTML = '<i class="fas fa-check text-success"></i> Complete';
+            setTimeout(() => {
+                location.reload();
+            }, enhanced ? 2000 : 1500);
+        } else {
+            btn.innerHTML = '<i class="fas fa-times text-danger"></i> Error';
+            console.error(data.message);
+        }
+    })
+    .catch(error => {
+        btn.innerHTML = '<i class="fas fa-times text-danger"></i> Error';
+        console.error('Sync error:', error);
+    })
+    .finally(() => {
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            otherBtn.disabled = false;
+        }, enhanced ? 3000 : 2000);
+    });
+}
+
+document.getElementById('syncMembersBtn').addEventListener('click', () => performSync(false));
+document.getElementById('syncEnhancedBtn').addEventListener('click', () => performSync(true));
 
 // Load Discord user data for all visible users
 document.addEventListener('DOMContentLoaded', function() {
     loadDiscordUserData();
+    
+    // Handle per-page selection
+    const perPageSelect = document.getElementById('perPageSelect');
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('per_page', this.value);
+            urlParams.set('page', '1'); // Reset to first page
+            window.location.search = urlParams.toString();
+        });
+    }
 });
 
 function loadDiscordUserData() {

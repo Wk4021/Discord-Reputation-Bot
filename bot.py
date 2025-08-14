@@ -58,6 +58,7 @@ async def main():
     async with bot:
         await bot.load_extension("cogs.logging")
         await bot.load_extension("cogs.rep")
+        await bot.load_extension("cogs.web_dashboard")
         await bot.start(os.getenv("DISCORD_TOKEN"))
 
 if __name__ == "__main__":

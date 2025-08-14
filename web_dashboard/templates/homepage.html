@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ server_name or 'Discord Review Dashboard' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Hero Section -->
+    <div class="row min-vh-100 d-flex align-items-center">
+        <div class="col-12">
+            <div class="text-center">
+                <!-- Server Icon/Logo -->
+                <div class="mb-4">
+                    {% if guild_info and guild_info.icon_url %}
+                        <img src="{{ guild_info.icon_url }}" alt="Server Icon" class="rounded-circle shadow-lg guild-icon">
+                    {% else %}
+                        <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-lg guild-placeholder" style="width: 120px; height: 120px;">
+                            <i class="fab fa-discord text-white" style="font-size: 3rem;"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Server Title -->
+                <h1 class="display-4 fw-bold mb-3">{{ server_name or 'Discord Community' }}</h1>
+                <p class="lead text-muted mb-5">Review and reputation system for our community marketplace</p>
+
+                <!-- Server Stats -->
+                {% if guild_info %}
+                <div class="row justify-content-center mb-5 homepage-stats">
+                    <div class="col-lg-8">
+                        <div class="row">
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-users text-primary fa-2x mb-2"></i>
+                                        <h4 class="fw-bold mb-1">{{ guild_info.member_count or 0 }}</h4>
+                                        <small class="text-muted">Members</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-comments text-success fa-2x mb-2"></i>
+                                        <h4 class="fw-bold mb-1">{{ stats.total_reviews or 0 }}</h4>
+                                        <small class="text-muted">Reviews</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-star text-warning fa-2x mb-2"></i>
+                                        <h4 class="fw-bold mb-1">{{ "%.1f"|format(stats.avg_rating or 0) }}</h4>
+                                        <small class="text-muted">Avg Rating</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body text-center py-4">
+                                        <i class="fas fa-user-check text-info fa-2x mb-2"></i>
+                                        <h4 class="fw-bold mb-1">{{ stats.active_users or 0 }}</h4>
+                                        <small class="text-muted">Active Users</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Call to Action Buttons -->
+                <div class="d-flex flex-column flex-md-row gap-3 justify-content-center mb-5 homepage-cta">
+                    {% if server_invite %}
+                    <a href="{{ server_invite }}" class="btn btn-primary btn-lg px-4 py-3" target="_blank">
+                        <i class="fab fa-discord me-2"></i>
+                        Join Our Discord Server
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('users') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
+                        <i class="fas fa-users me-2"></i>
+                        Browse Community Members
+                    </a>
+                </div>
+
+                <!-- Recent Activity -->
+                {% if recent_reviews %}
+                <div class="row justify-content-center recent-activity">
+                    <div class="col-lg-8">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-transparent">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Recent Reviews
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for review in recent_reviews %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center p-3 bg-light rounded">
+                                            <img src="{{ review.giver_avatar or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" 
+                                                 alt="Avatar" class="rounded-circle me-3" style="width: 40px; height: 40px;">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <strong>{{ review.giver_name }}</strong>
+                                                        <small class="text-muted d-block">reviewed {{ review.receiver_name }}</small>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="rating-stars">
+                                                            {% set star_count = (review.rating / 2)|int %}
+                                                            {% for i in range(star_count) %}⭐{% endfor %}
+                                                            {% if review.rating % 2 %}✨{% endif %}
+                                                        </div>
+                                                        <small class="text-muted">{{ review.created_at|format_date }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add smooth scrolling to internal links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
