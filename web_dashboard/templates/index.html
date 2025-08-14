@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}User List - Discord Review Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-users"></i> Community Members</h1>
+            <div class="input-group" style="max-width: 300px;">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="userTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                            <i class="fas fa-list"></i> All Users ({{ users|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="top-rated-tab" data-bs-toggle="tab" data-bs-target="#top-rated" type="button" role="tab">
+                            <i class="fas fa-star"></i> Top Rated
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="most-active-tab" data-bs-toggle="tab" data-bs-target="#most-active" type="button" role="tab">
+                            <i class="fas fa-fire"></i> Most Active
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="userTabContent">
+                    <!-- All Users Tab -->
+                    <div class="tab-pane fade show active" id="all" role="tabpanel">
+                        <div class="row" id="userGrid">
+                            {% for user in users %}
+                            <div class="col-lg-4 col-md-6 col-sm-12 mb-4 user-card" data-search-terms="{{ user.user_id }}">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="avatar-container me-3">
+                                                <img src="" alt="Avatar" class="rounded-circle discord-avatar" 
+                                                     data-user-id="{{ user.user_id }}" style="width: 50px; height: 50px;" 
+                                                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h5 class="card-title mb-1 discord-username" data-user-id="{{ user.user_id }}">
+                                                    User {{ user.user_id }}
+                                                </h5>
+                                                <small class="text-muted discord-discriminator" data-user-id="{{ user.user_id }}">
+                                                    Loading...
+                                                </small>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="stats-row mb-3">
+                                            <div class="row text-center">
+                                                <div class="col-4">
+                                                    <div class="stat-item">
+                                                        <div class="stat-value">{{ "%.1f"|format(user.avg_rating) }}</div>
+                                                        <div class="stat-label">Rating</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="stat-item">
+                                                        <div class="stat-value">{{ user.total_reviews }}</div>
+                                                        <div class="stat-label">Reviews</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="stat-item">
+                                                        <div class="stat-value">{{ user.reviews_given }}</div>
+                                                        <div class="stat-label">Given</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="rating-display mb-3">
+                                            {% if user.total_reviews > 0 %}
+                                                <span class="stars">{{ user.avg_rating|star_display }}</span>
+                                            {% else %}
+                                                <span class="text-muted">No reviews yet</span>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <a href="{{ url_for('user_profile', user_id=user.user_id) }}" 
+                                               class="btn btn-primary">
+                                                <i class="fas fa-user"></i> View Profile
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Top Rated Tab -->
+                    <div class="tab-pane fade" id="top-rated" role="tabpanel">
+                        <div class="row">
+                            {% for user in users[:10] if user.total_reviews > 0 %}
+                            <div class="col-lg-6 col-md-12 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="rank-badge me-3">
+                                                <span class="badge bg-primary">#{{ loop.index }}</span>
+                                            </div>
+                                            <img src="" alt="Avatar" class="rounded-circle discord-avatar me-3" 
+                                                 data-user-id="{{ user.user_id }}" style="width: 40px; height: 40px;" 
+                                                 onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0 discord-username" data-user-id="{{ user.user_id }}">
+                                                    User {{ user.user_id }}
+                                                </h6>
+                                                <small class="text-muted">{{ user.avg_rating|star_display }}</small>
+                                            </div>
+                                            <a href="{{ url_for('user_profile', user_id=user.user_id) }}" 
+                                               class="btn btn-sm btn-outline-primary">View</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Most Active Tab -->
+                    <div class="tab-pane fade" id="most-active" role="tabpanel">
+                        <div class="row">
+                            {% for user in users|sort(attribute='reviews_given', reverse=true)[:10] if user.reviews_given > 0 %}
+                            <div class="col-lg-6 col-md-12 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center">
+                                            <div class="rank-badge me-3">
+                                                <span class="badge bg-success">#{{ loop.index }}</span>
+                                            </div>
+                                            <img src="" alt="Avatar" class="rounded-circle discord-avatar me-3" 
+                                                 data-user-id="{{ user.user_id }}" style="width: 40px; height: 40px;" 
+                                                 onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-0 discord-username" data-user-id="{{ user.user_id }}">
+                                                    User {{ user.user_id }}
+                                                </h6>
+                                                <small class="text-muted">{{ user.reviews_given }} reviews given</small>
+                                            </div>
+                                            <a href="{{ url_for('user_profile', user_id=user.user_id) }}" 
+                                               class="btn btn-sm btn-outline-success">View</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not users %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-5x text-muted mb-3"></i>
+            <h3 class="text-muted">No users found</h3>
+            <p class="text-muted">No reviews have been submitted yet.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const userCards = document.querySelectorAll('.user-card');
+    
+    userCards.forEach(card => {
+        const searchTerms = card.getAttribute('data-search-terms').toLowerCase();
+        const username = card.querySelector('.discord-username').textContent.toLowerCase();
+        
+        if (searchTerms.includes(searchTerm) || username.includes(searchTerm)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+});
+
+// Load Discord user data for all visible users
+document.addEventListener('DOMContentLoaded', function() {
+    loadDiscordUserData();
+});
+
+function loadDiscordUserData() {
+    const avatars = document.querySelectorAll('.discord-avatar');
+    const usernames = document.querySelectorAll('.discord-username');
+    const discriminators = document.querySelectorAll('.discord-discriminator');
+    
+    // Get unique user IDs
+    const userIds = new Set();
+    avatars.forEach(avatar => {
+        userIds.add(avatar.getAttribute('data-user-id'));
+    });
+    
+    // Load data for each user
+    userIds.forEach(userId => {
+        fetch(`/api/discord_user/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update avatars
+                document.querySelectorAll(`.discord-avatar[data-user-id="${userId}"]`).forEach(img => {
+                    img.src = data.avatar_url;
+                    img.alt = data.username;
+                });
+                
+                // Update usernames
+                document.querySelectorAll(`.discord-username[data-user-id="${userId}"]`).forEach(element => {
+                    element.textContent = data.display_name || data.username;
+                });
+                
+                // Update discriminators
+                document.querySelectorAll(`.discord-discriminator[data-user-id="${userId}"]`).forEach(element => {
+                    element.textContent = `@${data.username}`;
+                });
+                
+                // Update search terms
+                document.querySelectorAll(`.user-card[data-search-terms*="${userId}"]`).forEach(card => {
+                    const currentTerms = card.getAttribute('data-search-terms');
+                    card.setAttribute('data-search-terms', 
+                        currentTerms + ' ' + data.username + ' ' + (data.display_name || ''));
+                });
+            })
+            .catch(error => {
+                console.error('Error loading user data:', error);
+            });
+    });
+}
+</script>
+{% endblock %}

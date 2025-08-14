@@ -1,0 +1,331 @@
+/* Discord Review Dashboard Styles */
+
+:root {
+    --discord-blurple: #5865F2;
+    --discord-dark: #2C2F33;
+    --discord-darker: #23272A;
+    --discord-light: #99AAB5;
+    --success-color: #43B581;
+    --warning-color: #FAA61A;
+    --danger-color: #F04747;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    color: var(--discord-blurple) !important;
+}
+
+/* User Cards */
+.user-card .card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    border-radius: 12px;
+}
+
+.user-card .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-item {
+    padding: 8px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--discord-blurple);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rating-display {
+    font-size: 0.9rem;
+}
+
+.rating-display .stars {
+    font-size: 1rem;
+}
+
+/* Avatar Styling */
+.discord-avatar {
+    object-fit: cover;
+    background-color: var(--discord-light);
+}
+
+/* Discord Banner */
+.discord-banner {
+    background-size: cover;
+    background-position: center;
+    border-radius: 12px 12px 0 0;
+    position: relative;
+}
+
+/* Status Badge */
+.status-badge {
+    background: rgba(0,0,0,0.3);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    backdrop-filter: blur(4px);
+}
+
+/* Stats Cards */
+.stat-icon {
+    opacity: 0.7;
+}
+
+.card-title {
+    color: var(--discord-dark);
+    margin-bottom: 0.5rem;
+}
+
+/* Review Items */
+.review-item {
+    border: 1px solid #e9ecef;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.review-item:hover {
+    background-color: #e9ecef !important;
+}
+
+.reviews-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.reviews-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.reviews-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.reviews-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.reviews-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Thread Cards */
+.thread-card {
+    transition: transform 0.2s ease-in-out;
+    border: none;
+    border-radius: 8px;
+}
+
+.thread-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* Badges */
+.badge {
+    font-size: 0.75rem;
+}
+
+.rank-badge .badge {
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: var(--discord-blurple);
+    border-color: var(--discord-blurple);
+}
+
+.btn-primary:hover {
+    background-color: #4752C4;
+    border-color: #4752C4;
+}
+
+.btn-outline-primary {
+    color: var(--discord-blurple);
+    border-color: var(--discord-blurple);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--discord-blurple);
+    border-color: var(--discord-blurple);
+}
+
+/* Search Input */
+#searchInput {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+#searchInput:focus {
+    border-color: var(--discord-blurple);
+    box-shadow: 0 0 0 0.2rem rgba(88, 101, 242, 0.25);
+}
+
+/* Tabs */
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s ease-in-out;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef var(--discord-blurple);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--discord-blurple);
+    background-color: #fff;
+    border-color: var(--discord-blurple) var(--discord-blurple) #fff;
+    font-weight: 500;
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-radius: 12px;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1.25rem;
+}
+
+/* Empty States */
+.text-center .fa-5x {
+    opacity: 0.3;
+}
+
+.text-center .fa-3x {
+    opacity: 0.4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .discord-banner {
+        height: 150px !important;
+    }
+    
+    .card-body {
+        margin-top: -30px !important;
+    }
+    
+    .discord-avatar {
+        width: 80px !important;
+        height: 80px !important;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .stat-item {
+        padding: 4px;
+    }
+    
+    .review-item {
+        padding: 0.75rem !important;
+    }
+}
+
+/* Loading Animation */
+.discord-avatar:not([src]),
+.discord-avatar[src=""] {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    
+    .card {
+        background-color: #2d2d30;
+        color: #e0e0e0;
+    }
+    
+    .bg-light {
+        background-color: #3c3c3c !important;
+    }
+    
+    .text-muted {
+        color: #a0a0a0 !important;
+    }
+}
+
+/* Utility Classes */
+.shadow-hover {
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.shadow-hover:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.border-discord {
+    border-color: var(--discord-blurple) !important;
+}
+
+.text-discord {
+    color: var(--discord-blurple) !important;
+}
+
+.bg-discord {
+    background-color: var(--discord-blurple) !important;
+}

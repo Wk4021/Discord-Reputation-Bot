@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import asyncio
 from utils.db import init_db
-from cogs.rep import RepTOSView, RepButtonView
+from cogs.rep import RepTOSView, ReviewButtonView
 
 # Load environment variables from .env
 load_dotenv()
@@ -30,7 +30,7 @@ async def on_ready():
     init_db()
 
     # Register persistent views for button survival
-    bot.add_view(RepButtonView())
+    bot.add_view(ReviewButtonView())
     bot.add_view(RepTOSView())
 
     print("✅ Ready. Use !sync to globally sync slash commands.")
@@ -56,6 +56,7 @@ async def main():
     Main entrypoint for loading cogs and starting the bot.
     """
     async with bot:
+        await bot.load_extension("cogs.logging")
         await bot.load_extension("cogs.rep")
         await bot.start(os.getenv("DISCORD_TOKEN"))
 

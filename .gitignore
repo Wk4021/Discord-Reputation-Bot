@@ -22,3 +22,6 @@ venv/
 .env
 data/config.yaml
 data/config.yaml
+/.claude
+.env
+.env

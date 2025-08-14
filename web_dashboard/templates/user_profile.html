@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - Discord Review Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Users</a></li>
+                <li class="breadcrumb-item active">Profile</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- User Header -->
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="discord-banner" id="userBanner" style="height: 200px; background: linear-gradient(135deg, #7289da 0%, #99aab5 100%); position: relative;">
+                <div class="banner-overlay" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); height: 100px;"></div>
+            </div>
+            <div class="card-body" style="margin-top: -50px; position: relative; z-index: 1;">
+                <div class="d-flex align-items-end mb-3">
+                    <div class="me-4">
+                        <img src="" alt="Avatar" class="rounded-circle discord-avatar border border-4 border-white shadow" 
+                             data-user-id="{{ user_id }}" style="width: 120px; height: 120px;" 
+                             onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                    </div>
+                    <div class="flex-grow-1 text-white">
+                        <h1 class="mb-1 discord-username" data-user-id="{{ user_id }}" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                            Loading...
+                        </h1>
+                        <p class="mb-0 discord-discriminator" data-user-id="{{ user_id }}" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                            User {{ user_id }}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <div class="status-badge discord-status" data-user-id="{{ user_id }}">
+                            <i class="fas fa-circle text-secondary"></i> Unknown
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon mb-2">
+                    <i class="fas fa-star fa-2x text-warning"></i>
+                </div>
+                <h3 class="card-title">{{ "%.1f"|format(stats.avg_rating) }}</h3>
+                <p class="card-text text-muted">Average Rating</p>
+                {% if stats.total_reviews > 0 %}
+                    <small class="text-muted">{{ stats.avg_rating|star_display }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon mb-2">
+                    <i class="fas fa-comments fa-2x text-primary"></i>
+                </div>
+                <h3 class="card-title">{{ stats.total_reviews }}</h3>
+                <p class="card-text text-muted">Reviews Received</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon mb-2">
+                    <i class="fas fa-pen fa-2x text-success"></i>
+                </div>
+                <h3 class="card-title">{{ stats.reviews_given }}</h3>
+                <p class="card-text text-muted">Reviews Given</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="stat-icon mb-2">
+                    <i class="fas fa-list fa-2x text-info"></i>
+                </div>
+                <h3 class="card-title">{{ stats.thread_ids|length }}</h3>
+                <p class="card-text text-muted">Active Posts</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Reviews Received -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-inbox"></i> Reviews Received
+                    <span class="badge bg-primary ms-2">{{ stats.latest_reviews|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if stats.latest_reviews %}
+                    <div class="reviews-list">
+                        {% for review in stats.latest_reviews %}
+                        <div class="review-item mb-3 p-3 bg-light rounded">
+                            <div class="d-flex align-items-start">
+                                <img src="" alt="Reviewer Avatar" class="rounded-circle discord-avatar me-3" 
+                                     data-user-id="{{ review.giver_id }}" style="width: 40px; height: 40px;" 
+                                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/1.png'">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <strong class="discord-username" data-user-id="{{ review.giver_id }}">
+                                            User {{ review.giver_id }}
+                                        </strong>
+                                        <small class="text-muted">{{ review.created_at|format_date }}</small>
+                                    </div>
+                                    <div class="rating-display mb-2">
+                                        {% set star_count = (review.rating / 2)|int %}
+                                        {% for i in range(star_count) %}⭐{% endfor %}
+                                        {% if review.rating % 2 %}✨{% endif %}
+                                        {% for i in range(5 - star_count - (1 if review.rating % 2 else 0)) %}☆{% endfor %}
+                                        <span class="ms-2 fw-bold">{{ review.rating }}/10</span>
+                                    </div>
+                                    {% if review.notes %}
+                                        <p class="mb-0">{{ review.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-comment-slash fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No reviews received yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews Given -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-paper-plane"></i> Reviews Given
+                    <span class="badge bg-success ms-2">{{ stats.reviews_given_data|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if stats.reviews_given_data %}
+                    <div class="reviews-list">
+                        {% for review in stats.reviews_given_data %}
+                        <div class="review-item mb-3 p-3 bg-light rounded">
+                            <div class="d-flex align-items-start">
+                                <img src="" alt="Recipient Avatar" class="rounded-circle discord-avatar me-3" 
+                                     data-user-id="{{ review.receiver_id }}" style="width: 40px; height: 40px;" 
+                                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/2.png'">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <a href="{{ url_for('user_profile', user_id=review.receiver_id) }}" class="text-decoration-none">
+                                            <strong class="discord-username" data-user-id="{{ review.receiver_id }}">
+                                                User {{ review.receiver_id }}
+                                            </strong>
+                                        </a>
+                                        <small class="text-muted">{{ review.created_at|format_date }}</small>
+                                    </div>
+                                    <div class="rating-display mb-2">
+                                        {% set star_count = (review.rating / 2)|int %}
+                                        {% for i in range(star_count) %}⭐{% endfor %}
+                                        {% if review.rating % 2 %}✨{% endif %}
+                                        {% for i in range(5 - star_count - (1 if review.rating % 2 else 0)) %}☆{% endfor %}
+                                        <span class="ms-2 fw-bold">{{ review.rating }}/10</span>
+                                    </div>
+                                    {% if review.notes %}
+                                        <p class="mb-2">{{ review.notes }}</p>
+                                    {% endif %}
+                                    <a href="#" class="btn btn-sm btn-outline-primary thread-link" data-thread-id="{{ review.thread_id }}">
+                                        <i class="fab fa-discord"></i> View Thread
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-pen-slash fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No reviews given yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Posts -->
+{% if stats.thread_ids %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Active Posts
+                    <span class="badge bg-info ms-2">{{ stats.thread_ids|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="threadsContainer">
+                    {% for thread_id in stats.thread_ids %}
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <div class="card thread-card" data-thread-id="{{ thread_id }}">
+                            <div class="card-body">
+                                <h6 class="card-title thread-name">Thread {{ thread_id }}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted thread-date">Loading...</small>
+                                </p>
+                                <a href="#" class="btn btn-sm btn-primary thread-link" data-thread-id="{{ thread_id }}">
+                                    <i class="fab fa-discord"></i> View on Discord
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserProfile();
+    loadThreadInfo();
+});
+
+function loadUserProfile() {
+    const userId = {{ user_id }};
+    
+    fetch(`/api/discord_user/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Update avatar
+            document.querySelectorAll('.discord-avatar[data-user-id="' + userId + '"]').forEach(img => {
+                img.src = data.avatar_url;
+                img.alt = data.username;
+            });
+            
+            // Update username
+            document.querySelectorAll('.discord-username[data-user-id="' + userId + '"]').forEach(element => {
+                element.textContent = data.display_name || data.username;
+            });
+            
+            // Update discriminator
+            document.querySelectorAll('.discord-discriminator[data-user-id="' + userId + '"]').forEach(element => {
+                element.textContent = `@${data.username}`;
+            });
+            
+            // Update banner if available
+            if (data.banner_url) {
+                document.getElementById('userBanner').style.backgroundImage = `url(${data.banner_url})`;
+                document.getElementById('userBanner').style.backgroundSize = 'cover';
+                document.getElementById('userBanner').style.backgroundPosition = 'center';
+            }
+            
+            // Update status
+            document.querySelectorAll('.discord-status[data-user-id="' + userId + '"]').forEach(element => {
+                const statusIcon = element.querySelector('i');
+                switch(data.status) {
+                    case 'online':
+                        statusIcon.className = 'fas fa-circle text-success';
+                        element.innerHTML = '<i class="fas fa-circle text-success"></i> Online';
+                        break;
+                    case 'idle':
+                        statusIcon.className = 'fas fa-moon text-warning';
+                        element.innerHTML = '<i class="fas fa-moon text-warning"></i> Away';
+                        break;
+                    case 'dnd':
+                        statusIcon.className = 'fas fa-minus-circle text-danger';
+                        element.innerHTML = '<i class="fas fa-minus-circle text-danger"></i> Do Not Disturb';
+                        break;
+                    default:
+                        statusIcon.className = 'fas fa-circle text-secondary';
+                        element.innerHTML = '<i class="fas fa-circle text-secondary"></i> Offline';
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading user profile:', error);
+        });
+    
+    // Load other users' data for reviews
+    const otherUserAvatars = document.querySelectorAll('.discord-avatar:not([data-user-id="' + userId + '"])');
+    const otherUsernames = document.querySelectorAll('.discord-username:not([data-user-id="' + userId + '"])');
+    
+    const otherUserIds = new Set();
+    otherUserAvatars.forEach(avatar => {
+        otherUserIds.add(avatar.getAttribute('data-user-id'));
+    });
+    
+    otherUserIds.forEach(otherUserId => {
+        fetch(`/api/discord_user/${otherUserId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.querySelectorAll('.discord-avatar[data-user-id="' + otherUserId + '"]').forEach(img => {
+                    img.src = data.avatar_url;
+                });
+                document.querySelectorAll('.discord-username[data-user-id="' + otherUserId + '"]').forEach(element => {
+                    element.textContent = data.display_name || data.username;
+                });
+            })
+            .catch(error => console.error('Error loading other user data:', error));
+    });
+}
+
+function loadThreadInfo() {
+    const threadCards = document.querySelectorAll('.thread-card');
+    
+    threadCards.forEach(card => {
+        const threadId = card.getAttribute('data-thread-id');
+        
+        fetch(`/api/thread_info/${threadId}`)
+            .then(response => response.json())
+            .then(data => {
+                const nameElement = card.querySelector('.thread-name');
+                const dateElement = card.querySelector('.thread-date');
+                const linkElement = card.querySelector('.thread-link');
+                
+                nameElement.textContent = data.name || `Thread ${threadId}`;
+                dateElement.textContent = `Created ${new Date(data.created_at).toLocaleDateString()}`;
+                linkElement.href = data.url;
+            })
+            .catch(error => {
+                console.error('Error loading thread info:', error);
+            });
+    });
+    
+    // Update all thread links
+    document.querySelectorAll('.thread-link').forEach(link => {
+        const threadId = link.getAttribute('data-thread-id');
+        
+        fetch(`/api/thread_info/${threadId}`)
+            .then(response => response.json())
+            .then(data => {
+                link.href = data.url;
+            })
+            .catch(error => {
+                link.href = '#';
+                link.onclick = function(e) {
+                    e.preventDefault();
+                    alert('Unable to load Discord thread link');
+                };
+            });
+    });
+}
+</script>
+{% endblock %}
