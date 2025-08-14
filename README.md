@@ -10,12 +10,14 @@
 
 # 🌟 Discord Reputation Bot V3.0-beta
 
-A **complete reputation system** for Discord marketplace communities featuring **star ratings**, **detailed reviews**, **web dashboard**, and **professional moderation tools**. Transform your Discord server into a trusted marketplace with TOS gating, review management, and comprehensive user analytics.
+A **complete reputation system** for Discord marketplace communities featuring **star ratings**, **detailed reviews**, **integrated web dashboard**, and **professional moderation tools**. Transform your Discord server into a trusted marketplace with TOS gating, review management, comprehensive user analytics, and live Discord integration.
 
 ## 🆕 **What's New in V3.0-beta**
 - ⭐ **Star Rating System** (1-10 ratings with visual stars)
 - 📝 **Detailed Reviews** (text reviews with rating modal)
-- 🌐 **Web Dashboard** (beautiful user profiles and analytics)
+- 🌐 **Integrated Web Dashboard** (real-time Discord widget integration)
+- 🎨 **Dark/Light Mode** (theme-aware interface with automatic Discord widget switching)
+- 🔗 **Thread Tracking** (direct links to Discord posts from reviews)
 - 👑 **Admin System** (force close posts, manage admins)
 - 📊 **Enhanced UI** (improved embeds and user experience)
 - 🔧 **Modular Architecture** (separated logging system)
@@ -39,13 +41,16 @@ A **complete reputation system** for Discord marketplace communities featuring *
 - **Average Ratings**: Smart calculation with star visualization
 - **Review History**: Complete review timeline for users
 
-### 🌐 **Web Dashboard**
+### 🌐 **Integrated Web Dashboard**
+- **Live Discord Widget**: Real-time server activity and member status
 - **User Directory**: Complete list with search and filtering
-- **User Profiles**: Discord avatars, banners, and profile data
+- **User Profiles**: Discord avatars, banners, roles, and badges
 - **Review Analytics**: Average ratings, review counts, activity metrics
-- **Active Posts**: Direct links to Discord threads
-- **Responsive Design**: Mobile-friendly interface
-- **Real-time Data**: Live updates from Discord and database
+- **Post History**: Direct links to Discord threads with real URLs
+- **Dark/Light Mode**: Theme toggle with Discord widget synchronization
+- **Responsive Design**: Mobile-friendly interface with adaptive layouts
+- **Real-time Data**: Live updates from Discord API and database
+- **Thread Integration**: Persistent Discord post links stored in database
 
 ### 👑 **Admin System**
 - **Configurable Admins**: Add/remove admins via commands
@@ -57,16 +62,18 @@ A **complete reputation system** for Discord marketplace communities featuring *
 ### 📊 **Analytics & Reporting**
 - **User Statistics**: Comprehensive user activity tracking
 - **Leaderboards**: Top rated users and most active reviewers
-- **Review Insights**: Detailed review analysis and trends
-- **Thread Tracking**: Monitor post activity and engagement
-- **Export Ready**: Database designed for analytics
+- **Review Insights**: Detailed review analysis with direct post links
+- **Thread Tracking**: Persistent Discord thread data storage
+- **Live Server Stats**: Real-time member count and online activity
+- **Export Ready**: Database designed for analytics with thread URLs
 
 ### 🛠️ **Modern Architecture**
 - **Modular Design**: Separated logging, review, and web systems
-- **Database Evolution**: Enhanced schema with review details
-- **API Integration**: RESTful endpoints for web dashboard
+- **Enhanced Database**: Thread tracking with Discord URLs
+- **API Integration**: RESTful endpoints for web dashboard and Discord
+- **Theme System**: CSS variables for light/dark mode switching
 - **Error Handling**: Comprehensive error management and logging
-- **Scalable**: Designed for high-volume communities
+- **Scalable**: Designed for high-volume communities with real-time updates
 
 ---
 
@@ -82,7 +89,7 @@ Discord-Reputation-Bot/
 │   ├── rep.py                      # Review system (star ratings + modals)
 │   └── logging.py                  # Modular logging system
 ├── utils/                          # Database and utilities
-│   └── db.py                       # Enhanced database (reviews + analytics)
+│   └── db.py                       # Enhanced database (reviews + thread tracking)
 ├── data/                           # Configuration and database
 │   ├── config.yaml                 # Settings (forums, admins, messages)
 │   └── rep.db                      # SQLite database (auto-created)
@@ -92,11 +99,12 @@ Discord-Reputation-Bot/
 │   ├── app.py                      # Flask web application
 │   ├── run_dashboard.py            # Dashboard launcher
 │   ├── templates/                  # HTML templates
-│   │   ├── base.html               # Base layout
+│   │   ├── base.html               # Base layout with theme system
+│   │   ├── homepage.html           # Homepage with Discord widget
 │   │   ├── index.html              # User directory
-│   │   └── user_profile.html       # User profile pages
+│   │   └── user_profile.html       # User profile with post links
 │   ├── static/                     # Static web assets
-│   │   ├── css/style.css           # Discord-themed styling
+│   │   ├── css/style.css           # Discord-themed styling + dark mode
 │   │   ├── js/main.js              # Interactive JavaScript
 │   │   └── images/                 # Image assets
 │   └── utils/                      # Web utilities
@@ -152,18 +160,27 @@ Discord-Reputation-Bot/
 
 4. **Configure `data/config.yaml`**
    ```yaml
+   # Basic Configuration
    forums:
      - 123456789012345678   # Your forum channel IDs
    log_channel: 987654321098765432  # Log channel ID
-   admin_ids:              # NEW: Admin user IDs
+   admin_ids:              # Admin user IDs
      - 111222333444555666  # Your admin user ID
      - 777888999000111222  # Additional admin IDs
+   
+   # Web Dashboard Settings (Optional)
+   server_name: "Your Server Name"
+   server_invite: "https://discord.gg/yourinvite"
+   
+   # TOS Messages
    tos_message: |
      Please review our Terms of Service in <#123456789012345678>
      and then click ✅ to agree or ❌ to decline.
      If you do not respond within {timeout}, this post will be automatically closed.
    tos_decline_response: |
      Marketplace terms not accepted. Thread will now be closed.
+   
+   # Rep Messages
    no_rep_messages:
      - "Damn, get your rep up! 📈"
      - "Zero rep? 🚨 Proceed with caution!"
@@ -240,17 +257,18 @@ Discord-Reputation-Bot/
 ## 🌐 Web Dashboard
 
 ### **Features**
-- **User Directory**: Browse all community members
-- **Search & Filter**: Find users by name or rating
-- **User Profiles**: Discord avatars, banners, and comprehensive stats
-- **Review History**: Complete review timeline with notes
-- **Active Posts**: Direct links to Discord threads
-- **Mobile Responsive**: Works on all devices
+- **Live Discord Widget**: Real-time server activity with online members
+- **User Directory**: Browse all community members with advanced search
+- **Dark/Light Mode**: Toggle themes with automatic Discord widget switching
+- **User Profiles**: Discord avatars, banners, roles, badges, and comprehensive stats
+- **Post History**: Direct "View Post" buttons linking to Discord threads
+- **Review Analytics**: Complete review timeline with Discord post integration
+- **Mobile Responsive**: Adaptive layouts for all devices
 
 ### **Access**
 - **Local**: http://localhost:5000
-- **Features**: Real-time data from Discord and database
-- **No Setup Required**: Uses same config as Discord bot
+- **Features**: Real-time Discord integration with persistent thread tracking
+- **No Setup Required**: Automatically uses Discord bot config and guild settings
 
 ---
 
@@ -277,8 +295,17 @@ A: Run the requirements installer: `RunMe.bat` → `[4] Install/Update Requireme
 **Q: Web dashboard shows no users?**
 A: Make sure Discord bot has run first to create database with review data
 
+**Q: Discord widget not loading?**
+A: Verify your server has widget enabled in Discord Server Settings → Widget
+
+**Q: "View Post" buttons not working?**
+A: Ensure Discord bot has been running to save thread information to database
+
 **Q: Port 5000 already in use?**
 A: Close other applications or edit `web_dashboard/app.py` to use different port
+
+**Q: Dark mode not switching Discord widget theme?**
+A: Check browser console for JavaScript errors and ensure widget iframe loads properly
 
 **Q: Slash commands not appearing?**
 A: Use `!sync` command and wait up to 1 hour for global registration

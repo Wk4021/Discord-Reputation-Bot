@@ -41,6 +41,21 @@ def init_db():
         )
     """)
     
+    # Threads table to store Discord thread information
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS threads (
+            thread_id   INTEGER PRIMARY KEY,
+            channel_id  INTEGER NOT NULL,
+            guild_id    INTEGER NOT NULL,
+            name        TEXT NOT NULL,
+            owner_id    INTEGER NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            archived    BOOLEAN DEFAULT FALSE,
+            locked      BOOLEAN DEFAULT FALSE,
+            jump_url    TEXT NOT NULL
+        )
+    """)
+    
     # Keep rep and rep_totals for backward compatibility, but they'll be deprecated
     c.execute("""
         CREATE TABLE IF NOT EXISTS rep (
@@ -286,3 +301,53 @@ def get_all_users() -> List[dict]:
         })
     conn.close()
     return users
+
+# Thread management functions
+
+def upsert_thread(thread_id: int, channel_id: int, guild_id: int, name: str, 
+                  owner_id: int, jump_url: str, archived: bool = False, locked: bool = False) -> None:
+    """
+    Insert or update a thread in the threads table.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO threads (thread_id, channel_id, guild_id, name, owner_id, jump_url, archived, locked) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+            name = ?,
+            archived = ?,
+            locked = ?,
+            jump_url = ?
+    """, (thread_id, channel_id, guild_id, name, owner_id, jump_url, archived, locked,
+          name, archived, locked, jump_url))
+    conn.commit()
+    conn.close()
+
+def get_thread_info(thread_id: int) -> Optional[dict]:
+    """
+    Get thread information from the database.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT thread_id, channel_id, guild_id, name, owner_id, created_at, archived, locked, jump_url
+        FROM threads 
+        WHERE thread_id = ?
+    """, (thread_id,))
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        return {
+            'thread_id': result[0],
+            'channel_id': result[1],
+            'guild_id': result[2],
+            'name': result[3],
+            'owner_id': result[4],
+            'created_at': result[5],
+            'archived': bool(result[6]),
+            'locked': bool(result[7]),
+            'jump_url': result[8]
+        }
+    return None

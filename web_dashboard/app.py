@@ -148,7 +148,7 @@ def get_user_stats(user_id):
     
     # Get latest reviews received
     c.execute("""
-        SELECT giver_id, rating, notes, created_at 
+        SELECT giver_id, rating, notes, created_at, thread_id
         FROM reviews 
         WHERE receiver_id = ? 
         ORDER BY created_at DESC 
@@ -161,7 +161,8 @@ def get_user_stats(user_id):
             'giver_id': row[0],
             'rating': row[1],
             'notes': row[2],
-            'created_at': row[3]
+            'created_at': row[3],
+            'thread_id': row[4]
         })
     
     # Get latest reviews given
@@ -463,17 +464,34 @@ def get_discord_user_info(user_id):
         })
 
 @app.route('/api/thread_info/<int:thread_id>')
-def get_thread_info(thread_id):
+def get_thread_info_api(thread_id):
     """API endpoint to get Discord thread information"""
-    # Mock thread data - would need Discord API integration
-    return jsonify({
-        'id': thread_id,
-        'name': f'Thread {thread_id}',
-        'url': f'https://discord.com/channels/{GUILD_ID or "GUILD_ID"}/CHANNEL_ID/{thread_id}',
-        'created_at': '2024-01-01T00:00:00Z',
-        'archived': False,
-        'owner_id': 123456789
-    })
+    thread_info = db.get_thread_info(thread_id)
+    
+    if thread_info:
+        return jsonify({
+            'id': thread_info['thread_id'],
+            'name': thread_info['name'],
+            'url': thread_info['jump_url'],
+            'created_at': thread_info['created_at'],
+            'archived': thread_info['archived'],
+            'locked': thread_info['locked'],
+            'owner_id': thread_info['owner_id'],
+            'channel_id': thread_info['channel_id'],
+            'guild_id': thread_info['guild_id']
+        })
+    else:
+        # Fallback for threads not in database yet
+        return jsonify({
+            'id': thread_id,
+            'name': f'Thread {thread_id}',
+            'url': f'https://discord.com/channels/{GUILD_ID or "GUILD_ID"}/CHANNEL_ID/{thread_id}',
+            'created_at': '2024-01-01T00:00:00Z',
+            'archived': False,
+            'locked': False,
+            'owner_id': None,
+            'error': 'Thread not found in database'
+        })
 
 @app.route('/api/sync_members', methods=['POST'])
 def sync_members():

@@ -89,10 +89,10 @@
         <div class="card text-center">
             <div class="card-body">
                 <div class="stat-icon mb-2">
-                    <i class="fas fa-list fa-2x text-info"></i>
+                    <i class="fas fa-history fa-2x text-info"></i>
                 </div>
                 <h3 class="card-title">{{ stats.thread_ids|length }}</h3>
-                <p class="card-text text-muted">Active Posts</p>
+                <p class="card-text text-muted">Post History</p>
             </div>
         </div>
     </div>
@@ -169,8 +169,11 @@
                                         <span class="ms-2 fw-bold">{{ review.rating }}/10</span>
                                     </div>
                                     {% if review.notes %}
-                                        <p class="mb-0">{{ review.notes }}</p>
+                                        <p class="mb-2">{{ review.notes }}</p>
                                     {% endif %}
+                                    <a href="#" class="btn btn-sm btn-outline-primary thread-link" data-thread-id="{{ review.thread_id }}">
+                                        <i class="fab fa-discord"></i> View Post
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -242,14 +245,14 @@
     </div>
 </div>
 
-<!-- Active Posts -->
+<!-- Post History -->
 {% if stats.thread_ids %}
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-list"></i> Active Posts
+                    <i class="fas fa-history"></i> Post History
                     <span class="badge bg-info ms-2">{{ stats.thread_ids|length }}</span>
                 </h5>
             </div>

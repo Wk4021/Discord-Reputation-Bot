@@ -102,6 +102,18 @@ class RepTOSView(discord.ui.View):
 
         # Archive & lock the thread
         await self.thread.edit(archived=True, locked=True)
+        
+        # Update thread status in database
+        db.upsert_thread(
+            thread_id=self.thread.id,
+            channel_id=self.thread.parent_id,
+            guild_id=self.thread.guild.id,
+            name=self.thread.name,
+            owner_id=self.thread.owner_id,
+            jump_url=self.thread.jump_url,
+            archived=True,
+            locked=True
+        )
 
     async def on_timeout(self):
         # Called if neither button is pressed within timeout
@@ -130,6 +142,18 @@ class RepTOSView(discord.ui.View):
 
             # Archive & lock
             await self.thread.edit(archived=True, locked=True)
+            
+            # Update thread status in database
+            db.upsert_thread(
+                thread_id=self.thread.id,
+                channel_id=self.thread.parent_id,
+                guild_id=self.thread.guild.id,
+                name=self.thread.name,
+                owner_id=self.thread.owner_id,
+                jump_url=self.thread.jump_url,
+                archived=True,
+                locked=True
+            )
 
         except Exception as e:
             print(f"[ERROR] Auto-close on timeout failed: {e}")
@@ -278,6 +302,18 @@ class CloseConfirmationModal(discord.ui.Modal):
         
         # Archive & lock
         await self.thread.edit(archived=True, locked=True)
+        
+        # Update thread status in database
+        db.upsert_thread(
+            thread_id=self.thread.id,
+            channel_id=self.thread.parent_id,
+            guild_id=self.thread.guild.id,
+            name=self.thread.name,
+            owner_id=self.thread.owner_id,
+            jump_url=self.thread.jump_url,
+            archived=True,
+            locked=True
+        )
 
 # Load the category→messages mapping
 def load_rep_messages():
@@ -458,6 +494,18 @@ class ReviewButtonView(discord.ui.View):
 
         # 5) Archive & lock
         await thread.edit(archived=True, locked=True)
+        
+        # 6) Update thread status in database
+        db.upsert_thread(
+            thread_id=thread.id,
+            channel_id=thread.parent_id,
+            guild_id=thread.guild.id,
+            name=thread.name,
+            owner_id=thread.owner_id,
+            jump_url=thread.jump_url,
+            archived=True,
+            locked=True
+        )
 
 
 class Rep(commands.Cog):
@@ -473,6 +521,18 @@ class Rep(commands.Cog):
             forums = [int(f) for f in config.get("forums", []) if str(f).isdigit()]
             if thread.parent_id not in forums:
                 return
+
+            # Save thread information to database
+            db.upsert_thread(
+                thread_id=thread.id,
+                channel_id=thread.parent_id,
+                guild_id=thread.guild.id,
+                name=thread.name,
+                owner_id=thread.owner_id,
+                jump_url=thread.jump_url,
+                archived=thread.archived,
+                locked=thread.locked
+            )
 
             # Join so the bot can send
             try:
