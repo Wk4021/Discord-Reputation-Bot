@@ -33,7 +33,13 @@
                                     <div class="card-body text-center py-4">
                                         <i class="fas fa-users text-primary fa-2x mb-2"></i>
                                         <h4 class="fw-bold mb-1">{{ guild_info.member_count or 0 }}</h4>
-                                        <small class="text-muted">Members</small>
+                                        <small class="text-muted">
+                                            {% if guild_info.online_members %}
+                                                {{ guild_info.online_members }} Online
+                                            {% else %}
+                                                Members
+                                            {% endif %}
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -60,7 +66,7 @@
                                     <div class="card-body text-center py-4">
                                         <i class="fas fa-user-check text-info fa-2x mb-2"></i>
                                         <h4 class="fw-bold mb-1">{{ stats.active_users or 0 }}</h4>
-                                        <small class="text-muted">Active Users</small>
+                                        <small class="text-muted">Opened Posts</small>
                                     </div>
                                 </div>
                             </div>
@@ -69,18 +75,41 @@
                 </div>
                 {% endif %}
 
-                <!-- Call to Action Buttons -->
-                <div class="d-flex flex-column flex-md-row gap-3 justify-content-center mb-5 homepage-cta">
-                    {% if server_invite %}
-                    <a href="{{ server_invite }}" class="btn btn-primary btn-lg px-4 py-3" target="_blank">
-                        <i class="fab fa-discord me-2"></i>
-                        Join Our Discord Server
-                    </a>
-                    {% endif %}
-                    <a href="{{ url_for('users') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
-                        <i class="fas fa-users me-2"></i>
-                        Browse Community Members
-                    </a>
+                <!-- Call to Action Buttons and Discord Widget -->
+                <div class="row justify-content-center mb-5">
+                    <div class="col-lg-8">
+                        <div class="d-flex flex-column flex-lg-row gap-4 justify-content-center align-items-center">
+                            <!-- Action Buttons -->
+                            <div class="d-flex flex-column gap-3 homepage-cta">
+                                {% if server_invite %}
+                                <a href="{{ server_invite }}" class="btn btn-primary btn-lg px-4 py-3" target="_blank">
+                                    <i class="fab fa-discord me-2"></i>
+                                    Join Our Discord Server
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('users') }}" class="btn btn-outline-primary btn-lg px-4 py-3">
+                                    <i class="fas fa-users me-2"></i>
+                                    Browse Community Members
+                                </a>
+                            </div>
+                            
+                            <!-- Discord Widget -->
+                            <div class="discord-widget-container">
+                                <div class="card shadow-lg border-0">
+                                    <div class="card-header bg-discord text-white text-center">
+                                        <h6 class="mb-0"><i class="fab fa-discord me-2"></i>Live Server Activity</h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <iframe src="https://discord.com/widget?id={{ guild_id or '765205625524584458' }}&theme=dark" 
+                                                width="350" height="400" allowtransparency="true" frameborder="0" 
+                                                sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                                                class="discord-widget">
+                                        </iframe>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Recent Activity -->
@@ -144,6 +173,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Update Discord widget theme based on user's theme preference
+    updateDiscordWidgetTheme();
+    
+    // Listen for theme changes
+    const themeToggle = document.querySelector('input[type="checkbox"]');
+    if (themeToggle) {
+        themeToggle.addEventListener('change', updateDiscordWidgetTheme);
+    }
 });
+
+function updateDiscordWidgetTheme() {
+    const discordWidget = document.querySelector('.discord-widget');
+    if (discordWidget) {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const currentSrc = discordWidget.src;
+        const guildId = '{{ guild_id or "765205625524584458" }}';
+        const theme = isDark ? 'dark' : 'light';
+        
+        // Update the widget theme
+        discordWidget.src = `https://discord.com/widget?id=${guildId}&theme=${theme}`;
+    }
+}
 </script>
 {% endblock %}

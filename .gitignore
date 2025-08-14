@@ -19,10 +19,4 @@ venv/
 *.swp
 *.swo
 .DS_Store
-.env
 data/config.yaml
-data/config.yaml
-/.claude
-.env
-.env
-.env

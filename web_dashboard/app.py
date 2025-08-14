@@ -13,6 +13,7 @@ import time
 import requests
 import hmac
 import hashlib
+import json
 
 # Load environment variables
 load_dotenv()
@@ -208,18 +209,35 @@ def get_all_users_with_activity():
             u.avatar_url,
             u.is_in_server,
             u.left_at,
+            u.roles,
+            u.badges,
             COALESCE(AVG(r_received.rating), 0) as avg_rating,
             COALESCE(COUNT(r_received.id), 0) as total_reviews,
             COALESCE(COUNT(r_given.id), 0) as reviews_given
         FROM users u
         LEFT JOIN reviews r_received ON u.user_id = r_received.receiver_id
         LEFT JOIN reviews r_given ON u.user_id = r_given.giver_id
-        GROUP BY u.user_id, u.username, u.display_name, u.avatar_url, u.is_in_server, u.left_at
+        GROUP BY u.user_id, u.username, u.display_name, u.avatar_url, u.is_in_server, u.left_at, u.roles, u.badges
         ORDER BY u.is_in_server DESC, COALESCE(AVG(r_received.rating), 0) DESC, u.username ASC
     """)
     
     users_data = []
     for row in c.fetchall():
+        # Parse JSON fields safely
+        roles = []
+        badges = []
+        try:
+            if row[6]:  # roles
+                roles = json.loads(row[6])
+        except (json.JSONDecodeError, TypeError):
+            roles = []
+            
+        try:
+            if row[7]:  # badges
+                badges = json.loads(row[7])
+        except (json.JSONDecodeError, TypeError):
+            badges = []
+        
         users_data.append({
             'user_id': row[0],
             'username': row[1],
@@ -227,9 +245,11 @@ def get_all_users_with_activity():
             'avatar_url': row[3],
             'is_in_server': bool(row[4]),
             'left_at': row[5],
-            'avg_rating': float(row[6]),
-            'total_reviews': row[7],
-            'reviews_given': row[8]
+            'roles': roles,
+            'badges': badges,
+            'avg_rating': float(row[8]),
+            'total_reviews': row[9],
+            'reviews_given': row[10]
         })
     
     conn.close()
@@ -266,33 +286,56 @@ def get_homepage_stats():
     }
 
 def get_guild_info():
-    """Get Discord guild information via API"""
-    if not DISCORD_TOKEN or not GUILD_ID:
-        return None
+    """Get Discord guild information via API and Widget API"""
+    guild_info = None
     
-    headers = {
-        'Authorization': f'Bot {DISCORD_TOKEN}',
-        'Content-Type': 'application/json'
-    }
+    # Try to get guild info from Discord API first
+    if DISCORD_TOKEN and GUILD_ID:
+        headers = {
+            'Authorization': f'Bot {DISCORD_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = requests.get(f'https://discord.com/api/v10/guilds/{GUILD_ID}', headers=headers)
+            if response.status_code == 200:
+                guild_data = response.json()
+                icon_url = None
+                if guild_data.get('icon'):
+                    icon_url = f"https://cdn.discordapp.com/icons/{GUILD_ID}/{guild_data['icon']}.png"
+                
+                guild_info = {
+                    'name': guild_data.get('name'),
+                    'member_count': guild_data.get('approximate_member_count', 0),
+                    'icon_url': icon_url,
+                    'description': guild_data.get('description')
+                }
+        except Exception as e:
+            print(f"Failed to fetch guild info from Bot API: {e}")
     
-    try:
-        response = requests.get(f'https://discord.com/api/v10/guilds/{GUILD_ID}', headers=headers)
-        if response.status_code == 200:
-            guild_data = response.json()
-            icon_url = None
-            if guild_data.get('icon'):
-                icon_url = f"https://cdn.discordapp.com/icons/{GUILD_ID}/{guild_data['icon']}.png"
-            
-            return {
-                'name': guild_data.get('name'),
-                'member_count': guild_data.get('approximate_member_count', 0),
-                'icon_url': icon_url,
-                'description': guild_data.get('description')
-            }
-    except Exception as e:
-        print(f"Failed to fetch guild info: {e}")
+    # Fallback to Discord Widget API for public information
+    if not guild_info and GUILD_ID:
+        try:
+            widget_response = requests.get(f'https://discord.com/api/guilds/{GUILD_ID}/widget.json')
+            if widget_response.status_code == 200:
+                widget_data = widget_response.json()
+                
+                # Extract member count from widget (count online members + estimate)
+                online_members = len(widget_data.get('members', []))
+                estimated_total = online_members * 3 if online_members > 0 else 0  # Rough estimate
+                
+                guild_info = {
+                    'name': widget_data.get('name', 'Discord Server'),
+                    'member_count': widget_data.get('presence_count', estimated_total),
+                    'icon_url': None,  # Widget doesn't provide icon URL
+                    'description': None,
+                    'online_members': online_members,
+                    'widget_available': True
+                }
+        except Exception as e:
+            print(f"Failed to fetch widget info: {e}")
     
-    return None
+    return guild_info
 
 def get_recent_reviews(limit=6):
     """Get recent reviews for homepage"""
@@ -349,6 +392,7 @@ def index():
                          server_name=config.get('server_name'),
                          server_invite=config.get('server_invite'),
                          guild_info=guild_info,
+                         guild_id=GUILD_ID,
                          stats=stats,
                          recent_reviews=recent_reviews)
 
@@ -371,20 +415,38 @@ def get_discord_user_info(user_id):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute("""
-        SELECT username, display_name, avatar_url, is_in_server
+        SELECT username, display_name, avatar_url, banner_url, accent_color, is_in_server, roles, badges
         FROM users WHERE user_id = ?
     """, (user_id,))
     result = c.fetchone()
     conn.close()
     
     if result:
+        # Parse JSON fields safely
+        roles = []
+        badges = []
+        try:
+            if result[6]:  # roles
+                roles = json.loads(result[6])
+        except (json.JSONDecodeError, TypeError):
+            roles = []
+            
+        try:
+            if result[7]:  # badges
+                badges = json.loads(result[7])
+        except (json.JSONDecodeError, TypeError):
+            badges = []
+        
         return jsonify({
             'id': user_id,
             'username': result[0],
             'display_name': result[1] or result[0],
             'avatar_url': result[2] or f'https://cdn.discordapp.com/embed/avatars/{user_id % 5}.png',
-            'banner_url': None,
-            'status': 'Online' if result[3] else 'Offline'
+            'banner_url': result[3],
+            'accent_color': result[4],
+            'status': 'Online' if result[5] else 'Offline',
+            'roles': roles,
+            'badges': badges
         })
     else:
         # Fallback for users not in database
@@ -394,7 +456,10 @@ def get_discord_user_info(user_id):
             'display_name': f'User {user_id}',
             'avatar_url': f'https://cdn.discordapp.com/embed/avatars/{user_id % 5}.png',
             'banner_url': None,
-            'status': 'Unknown'
+            'accent_color': None,
+            'status': 'Unknown',
+            'roles': [],
+            'badges': []
         })
 
 @app.route('/api/thread_info/<int:thread_id>')

@@ -159,7 +159,8 @@
                     <!-- Top Rated Tab -->
                     <div class="tab-pane fade" id="top-rated" role="tabpanel">
                         <div class="row">
-                            {% for user in users if user.total_reviews > 0 and loop.index <= 10 %}
+                            {% set top_rated_users = users|selectattr('total_reviews', '>', 0)|sort(attribute='avg_rating', reverse=true)|list %}
+                            {% for user in top_rated_users[:10] %}
                             <div class="col-lg-6 col-md-12 mb-3">
                                 <div class="card">
                                     <div class="card-body">
@@ -191,7 +192,8 @@
                     <!-- Most Active Tab -->
                     <div class="tab-pane fade" id="most-active" role="tabpanel">
                         <div class="row">
-                            {% for user in users|sort(attribute='reviews_given', reverse=true)|list if user.reviews_given > 0 and loop.index <= 10 %}
+                            {% set most_active_users = users|selectattr('reviews_given', '>', 0)|sort(attribute='reviews_given', reverse=true)|list %}
+                            {% for user in most_active_users[:10] %}
                             <div class="col-lg-6 col-md-12 mb-3">
                                 <div class="card">
                                     <div class="card-body">

@@ -369,9 +369,29 @@ body {
     color: var(--text-primary) !important;
 }
 
+/* Global bg-light override for theme support */
 .bg-light {
     background-color: var(--review-bg) !important;
     color: var(--text-primary) !important;
+}
+
+/* Additional styling for bg-light elements */
+.bg-light * {
+    color: var(--text-primary) !important;
+}
+
+.bg-light .text-muted {
+    color: var(--text-muted) !important;
+}
+
+.bg-light h4, .bg-light h5, .bg-light h6,
+.bg-light .card-title, .bg-light .card-text,
+.bg-light strong {
+    color: var(--text-primary) !important;
+}
+
+.bg-light small {
+    color: var(--text-muted) !important;
 }
 
 .text-muted {
@@ -640,8 +660,22 @@ input:checked + .theme-slider:before {
 .homepage-stats .card {
     border: none;
     transition: transform 0.3s ease-in-out;
-    background: rgba(255,255,255,0.95);
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
     backdrop-filter: blur(10px);
+}
+
+.homepage-stats .card .card-body {
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.homepage-stats .card h4 {
+    color: var(--text-primary) !important;
+}
+
+.homepage-stats .card small {
+    color: var(--text-muted) !important;
 }
 
 .homepage-stats .card:hover {
@@ -666,18 +700,20 @@ input:checked + .theme-slider:before {
 }
 
 .recent-activity .card {
-    background: rgba(255,255,255,0.98);
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
     backdrop-filter: blur(10px);
 }
 
 .recent-activity .bg-light {
-    background: rgba(248,249,250,0.8) !important;
+    background-color: var(--review-bg) !important;
+    color: var(--text-primary) !important;
     border-radius: 8px;
     transition: background-color 0.2s ease-in-out;
 }
 
 .recent-activity .bg-light:hover {
-    background: rgba(233,236,239,0.9) !important;
+    background-color: var(--review-hover) !important;
 }
 
 /* Guild Icon Styling */
@@ -692,6 +728,56 @@ input:checked + .theme-slider:before {
 .guild-placeholder {
     border: 4px solid rgba(255,255,255,0.2);
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+/* Discord Widget Styling */
+.discord-widget-container {
+    max-width: 370px;
+}
+
+.discord-widget-container .card {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    overflow: hidden;
+}
+
+.discord-widget-container .card-header {
+    background-color: var(--discord-blurple) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: white !important;
+}
+
+.discord-widget {
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    display: block;
+    background: transparent;
+}
+
+/* Widget responsiveness */
+@media (max-width: 991px) {
+    .discord-widget-container {
+        margin-top: 20px;
+        max-width: 100%;
+    }
+    
+    .discord-widget {
+        width: 100%;
+        max-width: 350px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 576px) {
+    .discord-widget {
+        width: 100%;
+        height: 350px;
+    }
+    
+    .discord-widget-container .card-header h6 {
+        font-size: 0.9rem;
+    }
 }
 
 /* Responsive Homepage */

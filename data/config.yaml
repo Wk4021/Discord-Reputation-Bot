@@ -1,14 +1,11 @@
+admin_ids:
+- 123456789012345678
+- 987654321098765432
 forums:
 - 1375996428278829177
 - 1376039817191755816
-log_channel: 765231556758732881
-server_invite: "https://discord.com/servers/rochester-ny-student-marketplace-765205625524584458"
-server_name: "Rochester NY Student Marketplace"
-webhook_url: "https://discord.com/api/webhooks/1405627125494714470/NcyrESjOvHjHAZDY6zzmOX0M5zSJ1AaQ8ak9NrY0fnuvYexmlFr6bZ4AAihfPjRY6kDP"  # Add your Discord webhook URL here for member sync
-webhook_secret: ""  # Optional secret for webhook verification
-admin_ids:
-- 123456789012345678  # Replace with actual admin user IDs
-- 987654321098765432  # Add more admin IDs as needed
+- 1405607133650616340
+log_channel: 1405694369935130665
 no_rep_messages:
 - "Damn, get your rep up! \U0001F4C8"
 - "Zero rep? \U0001F6A8 Proceed with caution!"
@@ -23,9 +20,13 @@ no_rep_messages:
 - "Reputation: loading\u2026 \u23F3 0/100"
 - "No stars yet \u2B50\u2606\u2606\u2606\u2606"
 - "They\u2019ve entered the arena with nothing but vibes. \u2728"
+server_invite: https://discord.com/servers/rochester-ny-student-marketplace-765205625524584458
+server_name: Rochester NY Student Marketplace
 tos_decline_response: 'Marketplace terms not accepted. Thread will now be closed.
 
   '
 tos_message: "Please review our Marketplace Terms of Service in <#913970503562178580>\n\
   and then click \u2705 to agree or \u274C to decline.\n\nIf you do not respond within\
   \ {timeout}, this post will be automatically closed.\n"
+webhook_secret: ''
+webhook_url: https://discord.com/api/webhooks/1405627125494714470/NcyrESjOvHjHAZDY6zzmOX0M5zSJ1AaQ8ak9NrY0fnuvYexmlFr6bZ4AAihfPjRY6kDP
