@@ -41,6 +41,41 @@
                             <i class="fas fa-moon theme-icon"></i>
                         </div>
                     </li>
+                    
+                    <!-- User Authentication -->
+                    {% if current_user %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if current_user.avatar %}
+                                {% set avatar_url = "https://cdn.discordapp.com/avatars/" ~ current_user.id ~ "/" ~ current_user.avatar ~ ".png" %}
+                            {% else %}
+                                {% set avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png" %}
+                            {% endif %}
+                            <img src="{{ avatar_url }}" alt="Profile" class="rounded-circle me-2" style="width: 32px; height: 32px;" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            <span class="d-none d-md-inline">{{ current_user.global_name or current_user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('my_profile') }}">
+                                    <i class="fas fa-user me-2"></i>My Profile
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-discord text-white me-2" href="{{ discord_login_url or '/auth/discord' }}">
+                            <i class="fab fa-discord me-2"></i>Sign in with Discord
+                        </a>
+                    </li>
+                    {% endif %}
+                    
                     <li class="nav-item">
                         <a class="nav-link" href="{{ config.get('server_invite', 'https://discord.com/servers/rochester-ny-student-marketplace-765205625524584458') }}" target="_blank">
                             <i class="fab fa-discord"></i> Join Server

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_title }} - Discord Reputation Bot{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="text-center">
+                <div class="error-icon mb-4">
+                    <i class="fas fa-exclamation-triangle fa-5x text-warning"></i>
+                </div>
+                
+                <h1 class="display-4 text-primary mb-3">{{ error_title or "Error" }}</h1>
+                <p class="lead text-muted mb-4">{{ error_message or "An unexpected error occurred." }}</p>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>Go Home
+                    </a>
+                    {% if discord_login_url %}
+                    <a href="{{ discord_login_url }}" class="btn btn-outline-primary">
+                        <i class="fab fa-discord me-2"></i>Try Discord Login
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-redirect after 10 seconds
+setTimeout(function() {
+    window.location.href = "{{ url_for('index') }}";
+}, 10000);
+</script>
+{% endblock %}
