@@ -6,7 +6,16 @@
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="fas fa-users"></i> Community Members</h1>
+            <div>
+                <h1><i class="fas fa-users"></i> Community Members</h1>
+                {% if pagination %}
+                <p class="text-muted mb-0">
+                    Showing {{ ((pagination.page - 1) * pagination.per_page + 1) }} to 
+                    {{ (pagination.page * pagination.per_page) if (pagination.page * pagination.per_page) <= pagination.total else pagination.total }} 
+                    of {{ pagination.total }} members
+                </p>
+                {% endif %}
+            </div>
             <div class="d-flex gap-2">
                 <button class="btn btn-outline-secondary" id="syncMembersBtn" title="Quick sync - basic info and roles">
                     <i class="fas fa-sync-alt"></i> Quick Sync
@@ -22,23 +31,76 @@
                 </div>
             </div>
         </div>
-
-        <!-- Pagination Controls -->
-        {% if pagination %}
-        <div class="pagination-controls">
-            <div class="items-per-page">
-                <label for="perPageSelect">Show:</label>
-                <select class="form-select form-select-sm" id="perPageSelect" style="width: auto;">
-                    <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
-                    <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25</option>
-                    <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50</option>
-                    <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100</option>
-                </select>
-                <span>per page</span>
+        
+        <!-- Pagination Controls Top -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <label for="perPageSelect" class="form-label me-2 mb-0">Show:</label>
+                    <select class="form-select" id="perPageSelect" style="width: auto;" onchange="changePerPage(this.value)">
+                        <option value="10" {{ 'selected' if pagination.per_page == 10 }}>10</option>
+                        <option value="25" {{ 'selected' if pagination.per_page == 25 }}>25</option>
+                        <option value="50" {{ 'selected' if pagination.per_page == 50 }}>50</option>
+                        <option value="100" {{ 'selected' if pagination.per_page == 100 }}>100</option>
+                    </select>
+                    <span class="ms-2">per page</span>
+                </div>
             </div>
-            
-            <div class="pagination-info">
-                Showing {{ pagination.start_index }}-{{ pagination.end_index }} of {{ pagination.total }} members
+            <div class="col-md-6">
+                <nav aria-label="User pagination">
+                    <ul class="pagination justify-content-end mb-0">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('users', page=pagination.prev_num, per_page=pagination.per_page) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </span>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, pagination.pages + 1) %}
+                            {% if page_num <= 3 or page_num > pagination.pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                                {% if page_num == pagination.page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('users', page=page_num, per_page=pagination.per_page) }}">{{ page_num }}</a>
+                                </li>
+                                {% endif %}
+                            {% elif page_num == 4 and pagination.page > 5 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% elif page_num == pagination.pages - 3 and pagination.page < pagination.pages - 4 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('users', page=pagination.next_num, per_page=pagination.per_page) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
         </div>
         {% endif %}
@@ -224,6 +286,74 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Bottom Pagination Controls -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <p class="text-muted mb-0">
+                    Showing {{ ((pagination.page - 1) * pagination.per_page + 1) }} to 
+                    {{ (pagination.page * pagination.per_page) if (pagination.page * pagination.per_page) <= pagination.total else pagination.total }} 
+                    of {{ pagination.total }} members
+                </p>
+            </div>
+            <div class="col-md-6">
+                <nav aria-label="User pagination">
+                    <ul class="pagination justify-content-end mb-0">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('users', page=pagination.prev_num, per_page=pagination.per_page) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </span>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, pagination.pages + 1) %}
+                            {% if page_num <= 3 or page_num > pagination.pages - 3 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                                {% if page_num == pagination.page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('users', page=page_num, per_page=pagination.per_page) }}">{{ page_num }}</a>
+                                </li>
+                                {% endif %}
+                            {% elif page_num == 4 and pagination.page > 5 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% elif page_num == pagination.pages - 3 and pagination.page < pagination.pages - 4 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('users', page=pagination.next_num, per_page=pagination.per_page) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -238,56 +368,17 @@
     </div>
 </div>
 {% endif %}
-
-<!-- Pagination Navigation -->
-{% if pagination and pagination.total_pages > 1 %}
-<div class="row">
-    <div class="col-12">
-        <nav aria-label="User pagination">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="?page=1&per_page={{ pagination.per_page }}" aria-label="First">
-                        <span aria-hidden="true">&laquo;&laquo;</span>
-                    </a>
-                </li>
-                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ pagination.prev_num or 1 }}&per_page={{ pagination.per_page }}" aria-label="Previous">
-                        <span aria-hidden="true">&laquo;</span>
-                    </a>
-                </li>
-                
-                <!-- Page numbers -->
-                {% for page_num in range(1, pagination.total_pages + 1) %}
-                    {% if page_num <= 2 or page_num >= pagination.total_pages - 1 or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
-                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="?page={{ page_num }}&per_page={{ pagination.per_page }}">{{ page_num }}</a>
-                        </li>
-                    {% elif page_num == 3 and pagination.page > 5 %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% elif page_num == pagination.total_pages - 2 and pagination.page < pagination.total_pages - 4 %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% endif %}
-                {% endfor %}
-                
-                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ pagination.next_num or pagination.total_pages }}&per_page={{ pagination.per_page }}" aria-label="Next">
-                        <span aria-hidden="true">&raquo;</span>
-                    </a>
-                </li>
-                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}" aria-label="Last">
-                        <span aria-hidden="true">&raquo;&raquo;</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Pagination functionality
+function changePerPage(value) {
+    const url = new URL(window.location);
+    url.searchParams.set('per_page', value);
+    url.searchParams.set('page', '1'); // Reset to first page when changing per_page
+    window.location.href = url.toString();
+}
 // Search functionality - server-side search with debouncing
 let searchTimeout;
 document.getElementById('searchInput').addEventListener('input', function() {

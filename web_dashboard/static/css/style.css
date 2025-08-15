@@ -869,6 +869,73 @@ input:checked + .theme-slider:before {
     }
 }
 
+/* Pagination Styling */
+.pagination .page-link {
+    color: var(--text-primary);
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.pagination .page-link:hover {
+    color: var(--discord-blurple);
+    background-color: var(--review-hover);
+    border-color: var(--discord-blurple);
+}
+
+.pagination .page-item.active .page-link {
+    color: white;
+    background-color: var(--discord-blurple);
+    border-color: var(--discord-blurple);
+}
+
+.pagination .page-item.disabled .page-link {
+    color: var(--text-muted);
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.form-select {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-select:focus {
+    background-color: var(--card-bg);
+    border-color: var(--discord-blurple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(114, 137, 218, 0.25);
+}
+
+.form-select option {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+/* Pagination responsive behavior */
+@media (max-width: 576px) {
+    .pagination {
+        justify-content: center !important;
+        margin-top: 1rem;
+    }
+    
+    .pagination .page-link {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Hide some page numbers on mobile */
+    .pagination .page-item:not(.active):not(:first-child):not(:last-child):not(.disabled) {
+        display: none;
+    }
+    
+    .pagination .page-item:first-child + .page-item,
+    .pagination .page-item:last-child + .page-item {
+        display: list-item;
+    }
+}
+
 /* Responsive Homepage */
 @media (max-width: 768px) {
     .homepage-cta .btn-lg {

@@ -27,8 +27,13 @@ from utils import db
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(16))
 
-# Configuration
-CONFIG_PATH = '../data/config.yaml'
+# Configuration - Support both running from root and web_dashboard directory
+if os.path.exists('data/config.yaml'):
+    CONFIG_PATH = 'data/config.yaml'
+elif os.path.exists('../data/config.yaml'):
+    CONFIG_PATH = '../data/config.yaml'
+else:
+    CONFIG_PATH = 'data/config.yaml'  # Fallback
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD_ID = int(os.getenv('GUILD_ID', 0)) if os.getenv('GUILD_ID', '').replace('YOUR_GUILD_ID_HERE', '').strip() else None
 
@@ -349,6 +354,191 @@ def get_all_users_with_activity():
     conn.close()
     return users_data
 
+def get_all_users_with_activity_paginated(page=1, per_page=25):
+    """Get paginated users from the database with their review stats"""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # First, get total count for pagination
+    c.execute("""
+        SELECT COUNT(DISTINCT u.user_id)
+        FROM users u
+    """)
+    total = c.fetchone()[0]
+    
+    # Calculate pagination values
+    offset = (page - 1) * per_page
+    pages = (total + per_page - 1) // per_page  # Ceiling division
+    has_prev = page > 1
+    has_next = page < pages
+    prev_num = page - 1 if has_prev else None
+    next_num = page + 1 if has_next else None
+    
+    # Get paginated users with their stats
+    c.execute("""
+        SELECT 
+            u.user_id,
+            u.username,
+            u.display_name,
+            u.avatar_url,
+            u.is_in_server,
+            u.left_at,
+            u.roles,
+            u.badges,
+            COALESCE(AVG(r_received.rating), 0) as avg_rating,
+            COALESCE(COUNT(r_received.id), 0) as total_reviews,
+            COALESCE(COUNT(r_given.id), 0) as reviews_given
+        FROM users u
+        LEFT JOIN reviews r_received ON u.user_id = r_received.receiver_id
+        LEFT JOIN reviews r_given ON u.user_id = r_given.giver_id
+        GROUP BY u.user_id, u.username, u.display_name, u.avatar_url, u.is_in_server, u.left_at, u.roles, u.badges
+        ORDER BY u.is_in_server DESC, COALESCE(AVG(r_received.rating), 0) DESC, u.username ASC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset))
+    
+    users_data = []
+    for row in c.fetchall():
+        # Parse JSON fields safely
+        roles = []
+        badges = []
+        try:
+            if row[6]:  # roles
+                roles = json.loads(row[6])
+        except (json.JSONDecodeError, TypeError):
+            roles = []
+            
+        try:
+            if row[7]:  # badges
+                badges = json.loads(row[7])
+        except (json.JSONDecodeError, TypeError):
+            badges = []
+        
+        users_data.append({
+            'user_id': row[0],
+            'username': row[1],
+            'display_name': row[2],
+            'avatar_url': row[3],
+            'is_in_server': bool(row[4]),
+            'left_at': row[5],
+            'roles': roles,
+            'badges': badges,
+            'avg_rating': float(row[8]),
+            'total_reviews': row[9],
+            'reviews_given': row[10]
+        })
+    
+    conn.close()
+    
+    return {
+        'users': users_data,
+        'total': total,
+        'pages': pages,
+        'page': page,
+        'per_page': per_page,
+        'has_prev': has_prev,
+        'has_next': has_next,
+        'prev_num': prev_num,
+        'next_num': next_num
+    }
+
+def search_users_with_pagination(search_query, page=1, per_page=25):
+    """Search users with pagination support"""
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # Prepare search term for SQL LIKE query
+    search_term = f"%{search_query.lower()}%"
+    
+    # First, get total count for pagination
+    c.execute("""
+        SELECT COUNT(DISTINCT u.user_id)
+        FROM users u
+        WHERE LOWER(u.username) LIKE ? 
+           OR LOWER(u.display_name) LIKE ?
+           OR CAST(u.user_id AS TEXT) LIKE ?
+    """, (search_term, search_term, search_term))
+    total = c.fetchone()[0]
+    
+    # Calculate pagination values
+    offset = (page - 1) * per_page
+    pages = (total + per_page - 1) // per_page  # Ceiling division
+    has_prev = page > 1
+    has_next = page < pages
+    prev_num = page - 1 if has_prev else None
+    next_num = page + 1 if has_next else None
+    
+    # Get paginated search results with their stats
+    c.execute("""
+        SELECT 
+            u.user_id,
+            u.username,
+            u.display_name,
+            u.avatar_url,
+            u.is_in_server,
+            u.left_at,
+            u.roles,
+            u.badges,
+            COALESCE(AVG(r_received.rating), 0) as avg_rating,
+            COALESCE(COUNT(r_received.id), 0) as total_reviews,
+            COALESCE(COUNT(r_given.id), 0) as reviews_given
+        FROM users u
+        LEFT JOIN reviews r_received ON u.user_id = r_received.receiver_id
+        LEFT JOIN reviews r_given ON u.user_id = r_given.giver_id
+        WHERE LOWER(u.username) LIKE ? 
+           OR LOWER(u.display_name) LIKE ?
+           OR CAST(u.user_id AS TEXT) LIKE ?
+        GROUP BY u.user_id, u.username, u.display_name, u.avatar_url, u.is_in_server, u.left_at, u.roles, u.badges
+        ORDER BY u.is_in_server DESC, COALESCE(AVG(r_received.rating), 0) DESC, u.username ASC
+        LIMIT ? OFFSET ?
+    """, (search_term, search_term, search_term, per_page, offset))
+    
+    users_data = []
+    for row in c.fetchall():
+        # Parse JSON fields safely
+        roles = []
+        badges = []
+        try:
+            if row[6]:  # roles
+                roles = json.loads(row[6])
+        except (json.JSONDecodeError, TypeError):
+            roles = []
+            
+        try:
+            if row[7]:  # badges
+                badges = json.loads(row[7])
+        except (json.JSONDecodeError, TypeError):
+            badges = []
+        
+        users_data.append({
+            'user_id': row[0],
+            'username': row[1],
+            'display_name': row[2],
+            'avatar_url': row[3],
+            'is_in_server': bool(row[4]),
+            'left_at': row[5],
+            'roles': roles,
+            'badges': badges,
+            'avg_rating': float(row[8]),
+            'total_reviews': row[9],
+            'reviews_given': row[10]
+        })
+    
+    conn.close()
+    
+    return {
+        'users': users_data,
+        'total': total,
+        'pages': pages,
+        'page': page,
+        'per_page': per_page,
+        'has_prev': has_prev,
+        'has_next': has_next,
+        'prev_num': prev_num,
+        'next_num': next_num
+    }
+
 def get_homepage_stats():
     """Get overall statistics for the homepage"""
     db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db.DB_PATH)
@@ -618,10 +808,29 @@ def index():
 
 @app.route('/users')
 def users():
-    """Users page showing all community members"""
-    users = get_all_users_with_activity()
+    """Users page showing all community members with pagination"""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    
+    # Validate per_page values
+    if per_page not in [10, 25, 50, 100]:
+        per_page = 25
+    
+    # Get paginated users data
+    users_data = get_all_users_with_activity_paginated(page=page, per_page=per_page)
+    
     return render_template('index.html', 
-                         users=users,
+                         users=users_data['users'],
+                         pagination={
+                             'page': page,
+                             'per_page': per_page,
+                             'total': users_data['total'],
+                             'pages': users_data['pages'],
+                             'has_prev': users_data['has_prev'],
+                             'has_next': users_data['has_next'],
+                             'prev_num': users_data['prev_num'],
+                             'next_num': users_data['next_num']
+                         },
                          discord_login_url=get_discord_login_url(),
                          current_user=session.get('user'))
 
@@ -745,6 +954,50 @@ def get_thread_info_api(thread_id):
             'error': 'Thread not found in database'
         })
 
+@app.route('/api/search_users')
+def search_users():
+    """API endpoint to search users with pagination"""
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    
+    # Validate per_page values
+    if per_page not in [10, 25, 50, 100]:
+        per_page = 25
+    
+    if not query:
+        return jsonify({
+            'status': 'error',
+            'message': 'Search query is required'
+        }), 400
+    
+    try:
+        # Get search results with pagination
+        search_results = search_users_with_pagination(query, page, per_page)
+        
+        return jsonify({
+            'status': 'success',
+            'users': search_results['users'],
+            'pagination': {
+                'page': search_results['page'],
+                'per_page': search_results['per_page'],
+                'total': search_results['total'],
+                'total_pages': search_results['pages'],
+                'has_prev': search_results['has_prev'],
+                'has_next': search_results['has_next'],
+                'prev_num': search_results['prev_num'],
+                'next_num': search_results['next_num'],
+                'start_index': ((search_results['page'] - 1) * search_results['per_page'] + 1),
+                'end_index': min(search_results['page'] * search_results['per_page'], search_results['total'])
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 @app.route('/api/sync_members', methods=['POST'])
 def sync_members():
     """API endpoint to manually sync Discord members"""
@@ -805,18 +1058,18 @@ def inject_config():
     return {'config': load_config()}
 
 if __name__ == '__main__':
-    print("🌐 Starting Discord Review Dashboard...")
-    print("📊 Dashboard will be available at http://localhost:5000")
+    print("Starting Discord Review Dashboard...")
+    print("Dashboard will be available at http://localhost:5000")
     
     # Initialize database
     db.init_db()
     
     # Check Discord configuration
     if DISCORD_TOKEN and GUILD_ID:
-        print("🤖 Discord integration configured (using REST API)")
+        print("Discord integration configured (using REST API)")
         print("   Use the 'Sync' button to fetch server members")
     else:
-        print("⚠️  Discord integration disabled (missing token or guild ID)")
+        print("Discord integration disabled (missing token or guild ID)")
         print("   Add DISCORD_TOKEN and GUILD_ID to .env file to enable")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
