@@ -1,17 +1,12 @@
-# Discord Bot Requirements
-discord.py>=2.3.2
-PyYAML
-python-dotenv
-
-# Web Dashboard Requirements
 Flask==2.3.3
+discord.py==2.3.2
+PyYAML==6.0.1
+python-dotenv==1.0.0
 Werkzeug==2.3.7
 Jinja2==3.1.2
 MarkupSafe==2.1.3
 click==8.1.7
 itsdangerous==2.1.2
-
-# Additional Dependencies (shared)
 aiohttp==3.8.6
 aiosignal==1.3.1
 async-timeout==4.0.3
@@ -20,4 +15,3 @@ charset-normalizer==3.3.0
 frozenlist==1.4.0
 multidict==6.0.4
 yarl==1.9.2
-requests>=2.31.0

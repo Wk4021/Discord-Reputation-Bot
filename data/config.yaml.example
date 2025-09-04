@@ -1,0 +1,134 @@
+# Discord Reputation Bot V3.0-beta Configuration
+# Copy this file to config.yaml and update with your server's information
+
+# ═══════════════════════════════════════════════════════════
+#                    REQUIRED SETTINGS
+# ═══════════════════════════════════════════════════════════
+
+# Discord Forum Channel IDs - Where the bot monitors for new posts
+# Add all forum channel IDs where you want reputation/review functionality
+forums:
+  - 123456789012345678  # Example: Marketplace Forum
+  - 987654321098765432  # Example: Services Forum
+  - 111222333444555666  # Add more forum channels as needed
+
+# Logging Channel ID - Where bot activities are logged
+# Create a private channel for staff to monitor bot activities
+log_channel: 123456789012345678
+
+# Admin User IDs - Users who can manage the bot and force-close posts
+# These users can use admin commands and override post restrictions
+admin_ids:
+  - 123456789012345678  # Your Discord User ID
+  - 987654321098765432  # Additional admin user ID
+  # To get Discord User IDs: Enable Developer Mode in Discord → Right-click user → Copy User ID
+
+# ═══════════════════════════════════════════════════════════
+#                   TOS AND MESSAGING
+# ═══════════════════════════════════════════════════════════
+
+# Terms of Service Message - Shown to users when they create a new post
+# {timeout} will be replaced with the countdown timer
+tos_message: |
+  Please review our Marketplace Terms of Service in <#123456789012345678>
+  and then click ✅ to agree or ❌ to decline.
+
+  If you do not respond within {timeout}, this post will be automatically closed.
+
+# TOS Decline Response - Message shown when user declines TOS
+tos_decline_response: |
+  Marketplace terms not accepted. Thread will now be closed.
+
+# ═══════════════════════════════════════════════════════════
+#                  WEB DASHBOARD SETTINGS
+# ═══════════════════════════════════════════════════════════
+
+# Server Display Name - Shown on the web dashboard homepage
+server_name: "Your Discord Server Name"
+
+# Server Invite Link - Used for "Join Server" buttons on website
+# Generate a permanent invite link from your Discord server
+server_invite: "https://discord.gg/your-invite-code"
+
+# ═══════════════════════════════════════════════════════════
+#                 FUN ZERO-REP MESSAGES
+# ═══════════════════════════════════════════════════════════
+
+# Random messages shown for users with zero reputation
+# Add your own creative messages! Emojis are supported
+no_rep_messages:
+  - "Damn, get your rep up! 📈"
+  - "Zero rep? 🚨 Proceed with caution!"
+  - "No rep? Bold move. 🚀"
+  - "Are you new here? 🤔"
+  - "Fresh meat on the block! 🥩 No rep yet!"
+  - "Caution: 0️⃣ reps – untested waters! 🌊"
+  - "Certified Ghost Seller 👻 (0 reps)"
+  - "They rep nobody… and nobody reps them. 🤷"
+  - "Sealed as untested 🚧 Handle with care!"
+  - "First sale jitters? 🐣 Zero rep mode!"
+  - "Reputation: loading… ⏳ 0/100"
+  - "No stars yet ⭐⭐⭐⭐⭐"
+  - "They've entered the arena with nothing but vibes. ✨"
+  - "New challenger approaches! 🥊 (No rep armor equipped)"
+  - "Reputation level: Rookie 🎮"
+  - "Trust level: To be determined 📊"
+  - "Street cred: Under construction 🚧"
+  - "Vouchers needed! 📝 Currently at zero"
+
+# ═══════════════════════════════════════════════════════════
+#                 WEBHOOK SETTINGS (OPTIONAL)
+# ═══════════════════════════════════════════════════════════
+
+# Discord Webhook for external integrations (leave empty if not needed)
+webhook_url: ""
+
+# Webhook secret for security (leave empty if not using webhooks)
+webhook_secret: ""
+
+# ═══════════════════════════════════════════════════════════
+#                      ADVANCED SETTINGS
+# ═══════════════════════════════════════════════════════════
+
+# You can add additional custom settings here for future features
+# These settings are optional and can be left as-is
+
+# Custom bot status messages (future feature)
+# status_messages:
+#   - "Managing marketplace reviews"
+#   - "Keeping the community safe"
+
+# Review moderation settings (future feature)
+# moderation:
+#   auto_moderate: false
+#   flagged_words: []
+#   min_review_length: 10
+
+# ═══════════════════════════════════════════════════════════
+#                      SETUP CHECKLIST
+# ═══════════════════════════════════════════════════════════
+
+# Before running the bot, make sure you have:
+# 
+# ✅ 1. Created a Discord Application at https://discord.com/developers/applications
+# ✅ 2. Generated a bot token and added it to your .env file
+# ✅ 3. Updated the forum channel IDs above
+# ✅ 4. Set the log channel ID
+# ✅ 5. Added your user ID to admin_ids
+# ✅ 6. Updated the TOS channel reference in tos_message
+# ✅ 7. Set your server name and invite link
+# ✅ 8. Invited the bot to your server with proper permissions
+# 
+# Required bot permissions:
+# - Send Messages, Embed Links, Use Slash Commands
+# - Manage Threads, View Channels, Read Message History
+# - Connect, Speak (if using voice features in the future)
+
+# ═══════════════════════════════════════════════════════════
+#                      SUPPORT & DOCS
+# ═══════════════════════════════════════════════════════════
+
+# For more help and documentation:
+# - Check the guides/ folder for detailed setup instructions
+# - README.md contains quick start information
+# - Issues: https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues

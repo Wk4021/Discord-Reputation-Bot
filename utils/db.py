@@ -1,11 +1,62 @@
 import sqlite3
+from datetime import datetime
+from typing import List, Tuple, Optional
 
 DB_PATH = 'data/rep.db'
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    # track who gave rep, to whom, in which thread
+    
+    # New reviews table to replace the old rep system
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS reviews (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            giver_id    INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            thread_id   INTEGER NOT NULL,
+            rating      INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 10),
+            notes       TEXT,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(giver_id, receiver_id, thread_id)
+        )
+    """)
+    
+    # Users table to store all server members
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id     INTEGER PRIMARY KEY,
+            username    TEXT NOT NULL,
+            display_name TEXT,
+            avatar_url  TEXT,
+            banner_url  TEXT,
+            accent_color INTEGER,
+            public_flags INTEGER,
+            joined_at   TIMESTAMP,
+            left_at     TIMESTAMP NULL,
+            is_in_server BOOLEAN DEFAULT TRUE,
+            roles       TEXT,  -- JSON string of role data
+            badges      TEXT,  -- JSON string of badge data
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Threads table to store Discord thread information
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS threads (
+            thread_id   INTEGER PRIMARY KEY,
+            channel_id  INTEGER NOT NULL,
+            guild_id    INTEGER NOT NULL,
+            name        TEXT NOT NULL,
+            owner_id    INTEGER NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            archived    BOOLEAN DEFAULT FALSE,
+            locked      BOOLEAN DEFAULT FALSE,
+            jump_url    TEXT NOT NULL
+        )
+    """)
+    
+    # Keep rep and rep_totals for backward compatibility, but they'll be deprecated
     c.execute("""
         CREATE TABLE IF NOT EXISTS rep (
             giver_id    INTEGER,
@@ -15,7 +66,7 @@ def init_db():
             UNIQUE(giver_id, receiver_id, thread_id)
         )
     """)
-    # totals by *receiver* only
+    
     c.execute("""
         CREATE TABLE IF NOT EXISTS rep_totals (
             user_id  INTEGER PRIMARY KEY,
@@ -23,6 +74,7 @@ def init_db():
             negative INTEGER DEFAULT 0
         )
     """)
+    
     conn.commit()
     conn.close()
 
@@ -80,3 +132,222 @@ def get_top_positive_rep(limit: int = 10) -> list[tuple[int,int]]:
     results = c.fetchall()
     conn.close()
     return results
+
+# New review system functions
+
+def add_review(giver_id: int, receiver_id: int, thread_id: int, rating: int, notes: Optional[str] = None) -> bool:
+    """
+    Records a review from giver_id to receiver_id in a given thread.
+    Returns False if the same giver already reviewed this receiver in this thread.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    try:
+        c.execute(
+            "INSERT INTO reviews (giver_id, receiver_id, thread_id, rating, notes) VALUES (?, ?, ?, ?, ?)",
+            (giver_id, receiver_id, thread_id, rating, notes)
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+def get_user_reviews(user_id: int) -> Tuple[float, int, List[dict]]:
+    """
+    Get user's review statistics and latest reviews.
+    Returns: (average_rating, total_reviews, latest_3_reviews)
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Get average rating and total count
+    c.execute("""
+        SELECT AVG(rating), COUNT(*) 
+        FROM reviews 
+        WHERE receiver_id = ?
+    """, (user_id,))
+    result = c.fetchone()
+    avg_rating = result[0] if result[0] else 0.0
+    total_reviews = result[1]
+    
+    # Get latest 3 reviews
+    c.execute("""
+        SELECT giver_id, rating, notes, created_at 
+        FROM reviews 
+        WHERE receiver_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 3
+    """, (user_id,))
+    
+    latest_reviews = []
+    for row in c.fetchall():
+        latest_reviews.append({
+            'giver_id': row[0],
+            'rating': row[1],
+            'notes': row[2],
+            'created_at': row[3]
+        })
+    
+    conn.close()
+    return (avg_rating, total_reviews, latest_reviews)
+
+def get_top_rated_users(limit: int = 10) -> List[Tuple[int, float, int]]:
+    """
+    Returns top rated users by average rating.
+    Returns: [(user_id, avg_rating, total_reviews), ...]
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT receiver_id, AVG(rating), COUNT(*) 
+        FROM reviews 
+        GROUP BY receiver_id 
+        HAVING COUNT(*) >= 1
+        ORDER BY AVG(rating) DESC, COUNT(*) DESC 
+        LIMIT ?
+    """, (limit,))
+    results = c.fetchall()
+    conn.close()
+    return results
+
+def has_user_reviewed(giver_id: int, receiver_id: int, thread_id: int) -> bool:
+    """
+    Check if a user has already reviewed another user in a specific thread.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT 1 FROM reviews 
+        WHERE giver_id = ? AND receiver_id = ? AND thread_id = ?
+    """, (giver_id, receiver_id, thread_id))
+    result = c.fetchone()
+    conn.close()
+    return result is not None
+
+# User management functions
+
+def upsert_user(user_id: int, username: str, display_name: str = None, avatar_url: str = None, 
+                banner_url: str = None, accent_color: int = None, public_flags: int = None,
+                joined_at: str = None, is_in_server: bool = True, roles: str = None, badges: str = None) -> None:
+    """
+    Insert or update a user in the users table.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO users (user_id, username, display_name, avatar_url, banner_url, accent_color, 
+                          public_flags, joined_at, is_in_server, roles, badges, last_updated) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(user_id) DO UPDATE SET
+            username = ?,
+            display_name = ?,
+            avatar_url = ?,
+            banner_url = ?,
+            accent_color = ?,
+            public_flags = ?,
+            is_in_server = ?,
+            roles = ?,
+            badges = ?,
+            last_updated = CURRENT_TIMESTAMP
+    """, (user_id, username, display_name, avatar_url, banner_url, accent_color, public_flags,
+          joined_at, is_in_server, roles, badges, username, display_name, avatar_url, 
+          banner_url, accent_color, public_flags, is_in_server, roles, badges))
+    conn.commit()
+    conn.close()
+
+def mark_user_left(user_id: int) -> None:
+    """
+    Mark a user as having left the server.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE users 
+        SET is_in_server = FALSE, left_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+    """, (user_id,))
+    conn.commit()
+    conn.close()
+
+def get_all_users() -> List[dict]:
+    """
+    Get all users from the database, including those who left the server.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT user_id, username, display_name, avatar_url, banner_url, accent_color, 
+               public_flags, joined_at, left_at, is_in_server, roles, badges
+        FROM users 
+        ORDER BY is_in_server DESC, username ASC
+    """)
+    users = []
+    for row in c.fetchall():
+        users.append({
+            'user_id': row[0],
+            'username': row[1],
+            'display_name': row[2],
+            'avatar_url': row[3],
+            'banner_url': row[4],
+            'accent_color': row[5],
+            'public_flags': row[6],
+            'joined_at': row[7],
+            'left_at': row[8],
+            'is_in_server': bool(row[9]),
+            'roles': row[10],
+            'badges': row[11]
+        })
+    conn.close()
+    return users
+
+# Thread management functions
+
+def upsert_thread(thread_id: int, channel_id: int, guild_id: int, name: str, 
+                  owner_id: int, jump_url: str, archived: bool = False, locked: bool = False) -> None:
+    """
+    Insert or update a thread in the threads table.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO threads (thread_id, channel_id, guild_id, name, owner_id, jump_url, archived, locked) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(thread_id) DO UPDATE SET
+            name = ?,
+            archived = ?,
+            locked = ?,
+            jump_url = ?
+    """, (thread_id, channel_id, guild_id, name, owner_id, jump_url, archived, locked,
+          name, archived, locked, jump_url))
+    conn.commit()
+    conn.close()
+
+def get_thread_info(thread_id: int) -> Optional[dict]:
+    """
+    Get thread information from the database.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT thread_id, channel_id, guild_id, name, owner_id, created_at, archived, locked, jump_url
+        FROM threads 
+        WHERE thread_id = ?
+    """, (thread_id,))
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        return {
+            'thread_id': result[0],
+            'channel_id': result[1],
+            'guild_id': result[2],
+            'name': result[3],
+            'owner_id': result[4],
+            'created_at': result[5],
+            'archived': bool(result[6]),
+            'locked': bool(result[7]),
+            'jump_url': result[8]
+        }
+    return None
