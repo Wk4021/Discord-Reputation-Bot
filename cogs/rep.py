@@ -544,11 +544,18 @@ class Rep(commands.Cog):
             timeout_secs = 30
             ts = int(time.time()) + timeout_secs
             countdown = f"<t:{ts}:R>"
-            tos_line = config["tos_message"].replace("{timeout}", countdown)
+            tos_message_text = config["tos_message"].replace("{timeout}", countdown)
+            
+            # Create embedded TOS message
+            embed = discord.Embed(
+                title="📋 Marketplace Terms of Service",
+                description=tos_message_text,
+                color=discord.Color.blue()
+            )
             
             view = RepTOSView(thread=thread, op_id=thread.owner_id, timeout=timeout_secs)
             await asyncio.sleep(2)
-            await thread.send(content=tos_line, view=view)
+            await thread.send(content=f"<@{thread.owner_id}>", embed=embed, view=view)
             pending_tos_timestamps[thread.id] = time.time()
 
             # Initialize log embed
@@ -796,4 +803,3 @@ class Rep(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Rep(bot))
-
