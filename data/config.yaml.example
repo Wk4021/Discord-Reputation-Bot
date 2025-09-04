@@ -23,6 +23,13 @@ admin_ids:
   - 987654321098765432  # Additional admin user ID
   # To get Discord User IDs: Enable Developer Mode in Discord → Right-click user → Copy User ID
 
+# Admin Role IDs - Roles that grant admin permissions
+# Users with these roles can manage the bot and force-close posts
+admin_role_ids:
+  - 123456789012345678  # Example: Staff Role ID
+  - 987654321098765432  # Example: Moderator Role ID
+  # To get Discord Role IDs: Enable Developer Mode in Discord → Right-click role → Copy Role ID
+
 # ═══════════════════════════════════════════════════════════
 #                   TOS AND MESSAGING
 # ═══════════════════════════════════════════════════════════
