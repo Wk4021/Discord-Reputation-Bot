@@ -20,6 +20,24 @@ def load_config():
         return yaml.safe_load(f)
 
 
+def is_admin(user: discord.Member) -> bool:
+    """Check if a user is an admin (either by user ID or role ID)"""
+    config = load_config()
+    admin_ids = config.get("admin_ids", [])
+    admin_role_ids = config.get("admin_role_ids", [])
+    
+    # Check user ID
+    if user.id in admin_ids:
+        return True
+    
+    # Check role IDs
+    user_role_ids = [role.id for role in user.roles]
+    if any(role_id in admin_role_ids for role_id in user_role_ids):
+        return True
+    
+    return False
+
+
 def load_funny_messages():
     try:
         with open("assets/rep_messages.txt", "r", encoding="utf-8") as f:
@@ -442,13 +460,9 @@ class ReviewButtonView(discord.ui.View):
         thread = interaction.channel  # type: discord.Thread
         op_id = thread.owner_id
         
-        # Load config to get admin IDs
-        config = load_config()
-        admin_ids = config.get("admin_ids", [])
-        
         # Check if user is OP or admin
         is_owner = interaction.user.id == op_id
-        is_admin = interaction.user.id in admin_ids
+        is_admin = is_admin(interaction.user)
         
         # 1) Only the OP or admins may close
         if not is_owner and not is_admin:
@@ -692,24 +706,24 @@ class Rep(commands.Cog):
     @app_commands.command(name="admin_add", description="Add a user as admin (admin only).")
     @app_commands.describe(user="The user to add as admin.")
     async def admin_add(self, interaction: discord.Interaction, user: discord.Member):
-        config = load_config()
-        admin_ids = config.get("admin_ids", [])
-        
         # Check if user is already an admin
-        if interaction.user.id not in admin_ids:
+        if not is_admin(interaction.user):
             await interaction.response.send_message(
                 "❌ Only admins can add other admins.", ephemeral=True
             )
             return
             
+        config = load_config()
+        admin_ids = config.get("admin_ids", [])
+        
         # Check if target is already admin
-        if user.id in admin_ids:
+        if is_admin(user):
             await interaction.response.send_message(
                 f"{user.mention} is already an admin.", ephemeral=True
             )
             return
             
-        # Add the new admin
+        # Add the new admin (add to user IDs by default)
         admin_ids.append(user.id)
         config["admin_ids"] = admin_ids
         
@@ -726,17 +740,17 @@ class Rep(commands.Cog):
     @app_commands.command(name="admin_remove", description="Remove a user from admin (admin only).")
     @app_commands.describe(user="The user to remove from admin.")
     async def admin_remove(self, interaction: discord.Interaction, user: discord.Member):
-        config = load_config()
-        admin_ids = config.get("admin_ids", [])
-        
         # Check if user is admin
-        if interaction.user.id not in admin_ids:
+        if not is_admin(interaction.user):
             await interaction.response.send_message(
                 "❌ Only admins can remove other admins.", ephemeral=True
             )
             return
             
-        # Check if target is admin
+        config = load_config()
+        admin_ids = config.get("admin_ids", [])
+        
+        # Check if target is admin by user ID (only remove from user IDs, not roles)
         if user.id not in admin_ids:
             await interaction.response.send_message(
                 f"{user.mention} is not an admin.", ephemeral=True
@@ -766,15 +780,16 @@ class Rep(commands.Cog):
 
     @app_commands.command(name="admin_list", description="List all admins (admin only).")
     async def admin_list(self, interaction: discord.Interaction):
-        config = load_config()
-        admin_ids = config.get("admin_ids", [])
-        
         # Check if user is admin
-        if interaction.user.id not in admin_ids:
+        if not is_admin(interaction.user):
             await interaction.response.send_message(
                 "❌ Only admins can view the admin list.", ephemeral=True
             )
             return
+        
+        config = load_config()
+        admin_ids = config.get("admin_ids", [])
+        admin_role_ids = config.get("admin_role_ids", [])
         
         embed = discord.Embed(
             title="👑 Admin List",
@@ -782,23 +797,109 @@ class Rep(commands.Cog):
             color=discord.Color.purple()
         )
         
-        if not admin_ids:
+        if not admin_ids and not admin_role_ids:
             embed.description = "No admins configured."
         else:
-            admin_mentions = []
-            for admin_id in admin_ids:
-                member = interaction.guild.get_member(admin_id)
-                if member:
-                    admin_mentions.append(f"• {member.mention} ({member.display_name})")
-                else:
-                    admin_mentions.append(f"• <@{admin_id}> (ID: {admin_id})")
+            # Show admin users
+            if admin_ids:
+                admin_mentions = []
+                for admin_id in admin_ids:
+                    member = interaction.guild.get_member(admin_id)
+                    if member:
+                        admin_mentions.append(f"• {member.mention} ({member.display_name})")
+                    else:
+                        admin_mentions.append(f"• <@{admin_id}> (ID: {admin_id})")
+                
+                embed.add_field(
+                    name=f"Admin Users ({len(admin_ids)})",
+                    value="\n".join(admin_mentions),
+                    inline=False
+                )
             
-            embed.add_field(
-                name=f"Admins ({len(admin_ids)})",
-                value="\n".join(admin_mentions),
-                inline=False
-            )
+            # Show admin roles
+            if admin_role_ids:
+                role_mentions = []
+                for role_id in admin_role_ids:
+                    role = interaction.guild.get_role(role_id)
+                    if role:
+                        role_mentions.append(f"• {role.mention} ({role.name})")
+                    else:
+                        role_mentions.append(f"• <@&{role_id}> (ID: {role_id})")
+                
+                embed.add_field(
+                    name=f"Admin Roles ({len(admin_role_ids)})",
+                    value="\n".join(role_mentions),
+                    inline=False
+                )
         
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="admin_role_add", description="Add a role as admin (admin only).")
+    @app_commands.describe(role="The role to add as admin.")
+    async def admin_role_add(self, interaction: discord.Interaction, role: discord.Role):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can add admin roles.", ephemeral=True
+            )
+            return
+            
+        config = load_config()
+        admin_role_ids = config.get("admin_role_ids", [])
+        
+        # Check if role is already admin
+        if role.id in admin_role_ids:
+            await interaction.response.send_message(
+                f"{role.mention} is already an admin role.", ephemeral=True
+            )
+            return
+            
+        # Add the new admin role
+        admin_role_ids.append(role.id)
+        config["admin_role_ids"] = admin_role_ids
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+            
+        embed = discord.Embed(
+            title="✅ Admin Role Added",
+            description=f"{role.mention} has been added as an admin role.",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="admin_role_remove", description="Remove a role from admin (admin only).")
+    @app_commands.describe(role="The role to remove from admin.")
+    async def admin_role_remove(self, interaction: discord.Interaction, role: discord.Role):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can remove admin roles.", ephemeral=True
+            )
+            return
+            
+        config = load_config()
+        admin_role_ids = config.get("admin_role_ids", [])
+        
+        # Check if role is admin
+        if role.id not in admin_role_ids:
+            await interaction.response.send_message(
+                f"{role.mention} is not an admin role.", ephemeral=True
+            )
+            return
+            
+        # Remove the admin role
+        admin_role_ids.remove(role.id)
+        config["admin_role_ids"] = admin_role_ids
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+            
+        embed = discord.Embed(
+            title="✅ Admin Role Removed",
+            description=f"{role.mention} has been removed from admin roles.",
+            color=discord.Color.orange()
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot: commands.Bot):
