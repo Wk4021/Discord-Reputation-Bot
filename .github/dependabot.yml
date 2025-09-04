@@ -3,30 +3,43 @@
 # Please see the documentation for all configuration options:
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
-  version: 2
-  updates:
-    - package-ecosystem: "pip"
-      directory: "/"
-      schedule:
-        interval: "weekly"
-        day: "monday"
-        time: "09:00"
-      open-pull-requests-limit: 10
-      reviewers:
-        - "Wk4021" 
-      assignees:
-        - "Wk4021"  
-      commit-message:
-        prefix: "deps"
-        include: "scope"
-      labels:
-        - "dependencies"
-        - "python"
-      allow:
-        - dependency-type: "direct"
-        - dependency-type: "indirect"
-      ignore:
-        - dependency-name: "Flask"
-          update-types: ["version-update:semver-major"]     
-        - dependency-name: "Werkzeug"
-          update-types: ["version-update:semver-major"] 
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "Wk4021"
+    assignees:
+      - "Wk4021"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+
+    # group ALL pip version updates into a single PR
+    groups:
+      python-deps:
+        applies-to: "version-updates"     # optional; defaults to version updates
+        patterns:
+          - "*"                           # include every dependency
+        update-types:
+          - "minor"
+          - "patch"
+        # To also include majors in the same PR, add:
+        # - "major"
+
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    ignore:
+      - dependency-name: "Flask"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Werkzeug"
+        update-types: ["version-update:semver-major"]
