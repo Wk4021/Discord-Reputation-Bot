@@ -1,0 +1,45 @@
+name: Auto-merge Dependabot
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    # Only for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      # Optional: fetch metadata to gate which updates you auto-merge
+      - name: Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # (Optional) Only auto-merge non-major updates
+      - name: Stop on major updates
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: |
+          echo "Major update detected—skipping auto-merge."
+          exit 1
+
+      # Approve the PR (satisfies 'required review' rules if you enable them)
+      - name: Approve Dependabot PR
+        uses: peter-evans/approve-pull-request@v6
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          review-message: "Auto-approving Dependabot (CI will gate merge)."
+
+      # Enable GitHub's native auto-merge; it will merge once required checks pass
+      - name: Enable auto-merge
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
