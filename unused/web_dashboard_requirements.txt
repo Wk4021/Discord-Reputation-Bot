@@ -13,5 +13,5 @@ async-timeout==4.0.3
 attrs==25.3.0
 charset-normalizer==3.3.0
 frozenlist==1.7.0
-multidict==6.0.4
+multidict==6.6.4
 yarl==1.9.2
