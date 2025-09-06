@@ -1,4 +1,4 @@
-# Discord Reputation Bot V3.0-beta Configuration
+# Discord Reputation Bot V3.1 Configuration
 # Copy this file to config.yaml and update with your server's information
 
 # ═══════════════════════════════════════════════════════════
@@ -45,6 +45,22 @@ tos_message: |
 # TOS Decline Response - Message shown when user declines TOS
 tos_decline_response: |
   Marketplace terms not accepted. Thread will now be closed.
+
+# ═══════════════════════════════════════════════════════════
+#                 AUTO-CLOSE SETTINGS (V3.1)
+# ═══════════════════════════════════════════════════════════
+
+# Auto-Close Feature - NEW in V3.1
+# Automatically closes marketplace threads after receiving the first review
+# to keep the server clean and prevent clutter from completed transactions
+auto_close_enabled: true  # Set to false to disable auto-close feature entirely
+auto_close_hours: 24      # Hours to wait before auto-closing (1-168 hours, default: 24)
+
+# How it works:
+# 1. When a thread receives its FIRST review, a 24-hour countdown begins
+# 2. Thread owner gets a warning message with a button to cancel if they have multiple items
+# 3. After 24 hours (or configured time), the thread automatically closes
+# 4. Admins can modify these settings using /settings or /auto_close_toggle commands
 
 # ═══════════════════════════════════════════════════════════
 #                  WEB DASHBOARD SETTINGS
@@ -112,6 +128,31 @@ webhook_secret: ""
 #   min_review_length: 10
 
 # ═══════════════════════════════════════════════════════════
+#                    V3.1 COMMAND REFERENCE
+# ═══════════════════════════════════════════════════════════
+
+# New Slash Commands in V3.1:
+# 
+# PUBLIC COMMANDS:
+# /reviews <user>          - Check a user's reviews and ratings
+# /leaderboard            - Show top 10 rated users
+# 
+# ADMIN COMMANDS:
+# /settings               - Interactive settings dashboard (RECOMMENDED)
+# /auto_close_toggle      - Enable/disable auto-close feature
+# /auto_close_hours       - Set auto-close timer (1-168 hours)
+# /send_review_ui         - Manually send review interface to thread
+# /channel_set <channel>  - Add forum channel for tracking
+# /log <channel>          - Set log channel
+# /admin_add <user>       - Add admin user
+# /admin_remove <user>    - Remove admin user
+# /admin_list             - List all admins
+# /admin_role_add <role>  - Add admin role
+# /admin_role_remove <role> - Remove admin role
+#
+# TIP: Use /settings for easy configuration through interactive interface!
+
+# ═══════════════════════════════════════════════════════════
 #                      SETUP CHECKLIST
 # ═══════════════════════════════════════════════════════════
 
@@ -124,12 +165,16 @@ webhook_secret: ""
 # ✅ 5. Added your user ID to admin_ids
 # ✅ 6. Updated the TOS channel reference in tos_message
 # ✅ 7. Set your server name and invite link
-# ✅ 8. Invited the bot to your server with proper permissions
+# ✅ 8. Configured auto-close settings (NEW in V3.1)
+# ✅ 9. Invited the bot to your server with proper permissions
+# ✅ 10. Run !sync command after starting bot to register slash commands
 # 
 # Required bot permissions:
 # - Send Messages, Embed Links, Use Slash Commands
 # - Manage Threads, View Channels, Read Message History
 # - Connect, Speak (if using voice features in the future)
+#
+# AFTER SETUP: Use /settings command for easy configuration!
 
 # ═══════════════════════════════════════════════════════════
 #                      SUPPORT & DOCS

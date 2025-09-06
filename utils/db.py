@@ -52,7 +52,9 @@ def init_db():
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             archived    BOOLEAN DEFAULT FALSE,
             locked      BOOLEAN DEFAULT FALSE,
-            jump_url    TEXT NOT NULL
+            jump_url    TEXT NOT NULL,
+            auto_close_scheduled TIMESTAMP NULL,
+            auto_close_cancelled BOOLEAN DEFAULT FALSE
         )
     """)
     
@@ -74,6 +76,19 @@ def init_db():
             negative INTEGER DEFAULT 0
         )
     """)
+    
+    # Add auto-close columns to existing threads table (migration)
+    try:
+        c.execute("ALTER TABLE threads ADD COLUMN auto_close_scheduled TIMESTAMP NULL")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+    
+    try:
+        c.execute("ALTER TABLE threads ADD COLUMN auto_close_cancelled BOOLEAN DEFAULT FALSE")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
     
     conn.commit()
     conn.close()
@@ -351,3 +366,69 @@ def get_thread_info(thread_id: int) -> Optional[dict]:
             'jump_url': result[8]
         }
     return None
+
+def schedule_thread_auto_close(thread_id: int, close_timestamp: float) -> None:
+    """
+    Schedule a thread for auto-close at the specified timestamp.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE threads 
+        SET auto_close_scheduled = ?, auto_close_cancelled = FALSE
+        WHERE thread_id = ?
+    """, (datetime.fromtimestamp(close_timestamp), thread_id))
+    conn.commit()
+    conn.close()
+
+def cancel_thread_auto_close(thread_id: int) -> None:
+    """
+    Cancel the auto-close for a thread.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        UPDATE threads 
+        SET auto_close_cancelled = TRUE
+        WHERE thread_id = ?
+    """, (thread_id,))
+    conn.commit()
+    conn.close()
+
+def get_threads_to_auto_close() -> List[dict]:
+    """
+    Get threads that should be auto-closed (scheduled time has passed and not cancelled).
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT thread_id, channel_id, guild_id, name, owner_id, jump_url
+        FROM threads 
+        WHERE auto_close_scheduled IS NOT NULL
+        AND auto_close_scheduled <= CURRENT_TIMESTAMP
+        AND auto_close_cancelled = FALSE
+        AND archived = FALSE
+    """)
+    threads = []
+    for row in c.fetchall():
+        threads.append({
+            'thread_id': row[0],
+            'channel_id': row[1],
+            'guild_id': row[2],
+            'name': row[3],
+            'owner_id': row[4],
+            'jump_url': row[5]
+        })
+    conn.close()
+    return threads
+
+def is_first_review_in_thread(thread_id: int) -> bool:
+    """
+    Check if this is the first review in the thread.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM reviews WHERE thread_id = ?", (thread_id,))
+    count = c.fetchone()[0]
+    conn.close()
+    return count == 1

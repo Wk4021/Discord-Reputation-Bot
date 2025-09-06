@@ -8,35 +8,39 @@
   <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="License"/></a>
 </p>
 
-# 🌟 Discord Reputation Bot V3.0-beta
+# 🌟 Discord Reputation Bot V3.1
 
-A **complete reputation system** for Discord marketplace communities featuring **star ratings**, **detailed reviews**, **integrated web dashboard**, and **professional moderation tools**. Transform your Discord server into a trusted marketplace with TOS gating, review management, comprehensive user analytics, and live Discord integration.
+A **complete reputation system** for Discord marketplace communities featuring **star ratings**, **detailed reviews**, **auto-close management**, **interactive settings**, and **integrated web dashboard**. Transform your Discord server into a trusted marketplace with intelligent thread management, comprehensive moderation tools, and live Discord integration.
 
-## 🆕 **What's New in V3.0-beta**
-- ⭐ **Star Rating System** (1-10 ratings with visual stars)
-- 📝 **Detailed Reviews** (text reviews with rating modal)
-- 🌐 **Integrated Web Dashboard** (real-time Discord widget integration)
-- 🎨 **Dark/Light Mode** (theme-aware interface with automatic Discord widget switching)
-- 🔗 **Thread Tracking** (direct links to Discord posts from reviews)
-- 👑 **Admin System** (force close posts, manage admins)
-- 📊 **Enhanced UI** (improved embeds and user experience)
-- 🔧 **Modular Architecture** (separated logging system)
+## 🆕 **What's New in V3.1**
+- 🕐 **Auto-Close System** (configurable thread closure after first review)
+- ⚙️ **Interactive Settings** (comprehensive `/settings` dashboard with modal forms)
+- 🔔 **Review Notifications** (users get mentioned when receiving reviews)
+- 🔘 **Cancel Controls** (thread owners can prevent auto-close for multiple items)
+- 🤖 **Background Tasks** (automated thread monitoring and closure)
+- 👑 **Enhanced Admin Tools** (role-based permissions, improved commands)
+- 📊 **Comprehensive Logging** (all actions logged to console and Discord)
+- 🛠️ **Better UX** (visual feedback, validation, error handling)
 
 ---
 
 ## 🚀 Features
 
-### 🔒 **TOS Gating & Thread Management**
+### 🔒 **TOS Gating & Intelligent Thread Management**
 - **Smart TOS Prompts**: New threads require Terms of Service acceptance
 - **Live Countdown**: Discord timestamps show exact timeout
 - **Message Protection**: Auto-delete messages before TOS acceptance
-- **Auto-Close**: Threads close automatically if unattended
-- **Admin Override**: Admins can force close any post
+- **Smart Auto-Close**: Threads close automatically after first review (V3.1)
+- **Cancel Controls**: Thread owners can prevent closure for multiple items (V3.1)
+- **Background Monitoring**: Automated task checks every 10 minutes (V3.1)
+- **Admin Override**: Admins can force close any post with comprehensive logging
 
 ### ⭐ **Advanced Review System**
 - **1-10 Star Ratings**: Detailed rating system with visual stars
 - **Review Modal**: Professional popup for collecting ratings and notes
 - **Review Notes**: Detailed text feedback (up to 500 characters)
+- **User Notifications**: Instant mentions when users receive reviews (V3.1)
+- **Auto-Close Triggers**: First review starts configurable countdown (V3.1)
 - **Latest Reviews**: Display recent reviews with full context
 - **Average Ratings**: Smart calculation with star visualization
 - **Review History**: Complete review timeline for users
@@ -52,12 +56,14 @@ A **complete reputation system** for Discord marketplace communities featuring *
 - **Real-time Data**: Live updates from Discord API and database
 - **Thread Integration**: Persistent Discord post links stored in database
 
-### 👑 **Admin System**
-- **Configurable Admins**: Add/remove admins via commands
+### 👑 **Enhanced Admin System**
+- **Interactive Settings**: Comprehensive `/settings` dashboard (V3.1)
+- **Role-Based Permissions**: Support for both user IDs and role IDs (V3.1)
+- **Auto-Close Management**: Toggle and configure auto-close system (V3.1)
+- **Configurable Admins**: Add/remove admins via commands or settings UI
 - **Force Close**: Override close restrictions for moderation
-- **Admin Commands**: `/admin_add`, `/admin_remove`, `/admin_list`
-- **Enhanced Logging**: Track admin actions and user activity
-- **Permission Checking**: Smart role-based permissions
+- **Enhanced Logging**: All actions logged to console and Discord channels (V3.1)
+- **Modal Interfaces**: User-friendly forms for all configuration changes (V3.1)
 
 ### 📊 **Analytics & Reporting**
 - **User Statistics**: Comprehensive user activity tracking
@@ -167,6 +173,13 @@ Discord-Reputation-Bot/
    admin_ids:              # Admin user IDs
      - 111222333444555666  # Your admin user ID
      - 777888999000111222  # Additional admin IDs
+   admin_role_ids:         # Admin role IDs (V3.1)
+     - 123456789012345678  # Staff role ID
+     - 987654321098765432  # Moderator role ID
+   
+   # Auto-Close Settings (V3.1)
+   auto_close_enabled: true   # Enable auto-close after first review
+   auto_close_hours: 24       # Hours before auto-close (1-168)
    
    # Web Dashboard Settings (Optional)
    server_name: "Your Server Name"
@@ -220,14 +233,24 @@ Discord-Reputation-Bot/
 
 ---
 
-## ⭐ New Review System
+## ⭐ Enhanced Review System (V3.1)
 
 ### **How It Works**
 1. **User clicks "⭐ Leave a Review"** button in Discord thread
 2. **Modal popup appears** requesting rating (1-10) and optional notes
 3. **Review is saved** to database with timestamp
-4. **UI updates** showing new average rating and latest reviews
-5. **Web dashboard** displays comprehensive review history
+4. **Thread owner gets mentioned** with review notification (V3.1)
+5. **First review triggers auto-close countdown** (configurable, V3.1)
+6. **Thread owner can cancel auto-close** for multiple items (V3.1)
+7. **UI updates** showing new average rating and latest reviews
+8. **Web dashboard** displays comprehensive review history
+
+### **Auto-Close Workflow (V3.1)**
+1. **First review received** → Auto-close timer starts (default: 24 hours)
+2. **Warning embed appears** with cancel button for multiple items
+3. **Thread owner can cancel** if they have multiple items to sell
+4. **Background task monitors** and closes expired threads automatically
+5. **All events logged** to console and Discord log channel
 
 ### **Star Display Examples**
 
@@ -242,15 +265,32 @@ Discord-Reputation-Bot/
 
 ### **Available Commands**
 
+#### **🔧 New V3.1 Commands**
+| Command | Description |
+|---------|-------------|
+| `/settings` | **Interactive settings dashboard** (admin only) |
+| `/auto_close_toggle [enabled]` | Enable/disable auto-close feature (admin only) |
+| `/auto_close_hours <hours>` | Set auto-close timer 1-168 hours (admin only) |
+| `/send_review_ui` | Manually send review interface (admin only) |
+
+#### **📊 Public Commands**
 | Command | Description |
 |---------|-------------|
 | `/reviews @user` | View user's rating and recent reviews |
 | `/leaderboard` | Top 10 highest rated users |
-| `/admin_add @user` | Add user as admin (admin only) |
-| `/admin_remove @user` | Remove admin privileges (admin only) |
-| `/admin_list` | View all current admins (admin only) |
+
+#### **👑 Admin Commands**
+| Command | Description |
+|---------|-------------|
+| `/admin_add @user` | Add user as admin |
+| `/admin_remove @user` | Remove admin privileges |
+| `/admin_list` | View all current admins |
+| `/admin_role_add @role` | Add admin role (V3.1) |
+| `/admin_role_remove @role` | Remove admin role (V3.1) |
 | `/channel_set #forum` | Enable reviews for forum channel |
 | `/log #channel` | Set log channel for review notifications |
+
+**💡 Tip**: Use `/settings` for easy configuration through interactive interface!
 
 ---
 
@@ -310,6 +350,18 @@ A: Check browser console for JavaScript errors and ensure widget iframe loads pr
 **Q: Slash commands not appearing?**
 A: Use `!sync` command and wait up to 1 hour for global registration
 
+**Q: Auto-close not working?**
+A: Check if auto-close is enabled in `/settings` or use `/auto_close_toggle true`
+
+**Q: How to configure auto-close timer?**
+A: Use `/settings` → Auto-Close Settings or `/auto_close_hours <1-168>`
+
+**Q: Thread closed too early?**
+A: Thread owners can cancel auto-close using the button that appears after first review
+
+**Q: Settings command not working?**
+A: Ensure you have admin permissions (user ID or role ID in config)
+
 **Q: How do I get Discord user IDs for admin config?**
 A: Enable Developer Mode in Discord, right-click user → Copy User ID
 
@@ -332,8 +384,8 @@ A: Enable Developer Mode in Discord, right-click user → Copy User ID
 ---
 
 <p align="center">
-  <strong>🌟 Discord Reputation Bot V3.0-beta 🌟</strong><br/>
-  <em>Transform your Discord server into a trusted marketplace</em>
+  <strong>🌟 Discord Reputation Bot V3.1 🌟</strong><br/>
+  <em>Transform your Discord server into a trusted marketplace with intelligent automation</em>
 </p>
 
 <p align="center">
