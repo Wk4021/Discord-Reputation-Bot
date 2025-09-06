@@ -56,6 +56,10 @@ tos_decline_response: |
 auto_close_enabled: true  # Set to false to disable auto-close feature entirely
 auto_close_hours: 24      # Hours to wait before auto-closing (1-168 hours, default: 24)
 
+# Admin Confirmation Settings - NEW in V3.1
+# Controls whether admins need to confirm before force-closing posts
+admin_close_confirmation: true  # Set to false to allow instant admin closes without confirmation
+
 # How it works:
 # 1. When a thread receives its FIRST review, a 24-hour countdown begins
 # 2. Thread owner gets a warning message with a button to cancel if they have multiple items
@@ -110,16 +114,31 @@ webhook_url: ""
 webhook_secret: ""
 
 # ═══════════════════════════════════════════════════════════
-#                      ADVANCED SETTINGS
+#                      ADVANCED SETTINGS (V3.1)
 # ═══════════════════════════════════════════════════════════
 
-# You can add additional custom settings here for future features
-# These settings are optional and can be left as-is
-
-# Custom bot status messages (future feature)
-# status_messages:
-#   - "Managing marketplace reviews"
-#   - "Keeping the community safe"
+# Bot Status Settings - NEW in V3.1
+# Customize your bot's Discord status message and activity type
+bot_status:
+  enabled: true                    # Enable custom bot status
+  activity_type: "watching"        # Options: playing, listening, watching, competing, streaming
+  message: "marketplace reviews"   # Status message (e.g. "Playing marketplace reviews")
+  status_type: "online"           # Options: online, idle, dnd, invisible
+  
+# Multiple Status Messages - Rotate through different messages
+# Uncomment and customize the list below to enable rotation
+# status_rotation:
+#   enabled: false                 # Enable status rotation every few minutes
+#   interval_minutes: 10           # How often to change status (5-60 minutes)
+#   messages:
+#     - type: "watching"
+#       message: "marketplace reviews"
+#     - type: "playing" 
+#       message: "reputation manager"
+#     - type: "listening"
+#       message: "community feedback"
+#     - type: "watching"
+#       message: "for marketplace scams"
 
 # Review moderation settings (future feature)
 # moderation:

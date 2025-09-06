@@ -232,6 +232,14 @@ class SettingsView(discord.ui.View):
         modal = ServerSettingsModal()
         await interaction.response.send_modal(modal)
 
+    @discord.ui.button(label="🤖 Bot Status", style=discord.ButtonStyle.secondary, row=1)
+    async def bot_status_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can modify settings.", ephemeral=True)
+        
+        modal = BotStatusSettingsModal()
+        await interaction.response.send_modal(modal)
+
     @discord.ui.button(label="🔄 Refresh", style=discord.ButtonStyle.gray, row=2)
     async def refresh_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed = await self.create_main_settings_embed(interaction)
@@ -249,9 +257,10 @@ class SettingsView(discord.ui.View):
         # Auto-Close Settings
         auto_close_enabled = config.get("auto_close_enabled", True)
         auto_close_hours = config.get("auto_close_hours", 24)
+        admin_confirmation = config.get("admin_close_confirmation", True)
         embed.add_field(
             name="🔧 Auto-Close Settings",
-            value=f"**Status:** {'✅ Enabled' if auto_close_enabled else '❌ Disabled'}\n**Timer:** {auto_close_hours} hours",
+            value=f"**Status:** {'✅ Enabled' if auto_close_enabled else '❌ Disabled'}\n**Timer:** {auto_close_hours} hours\n**Admin Confirm:** {'✅ Yes' if admin_confirmation else '❌ No'}",
             inline=True
         )
 
@@ -294,6 +303,23 @@ class SettingsView(discord.ui.View):
         embed.add_field(
             name="📋 TOS Settings",
             value="**Message:** Configured\n**Decline:** Configured",
+            inline=True
+        )
+
+        # Bot Status Settings
+        bot_status = config.get("bot_status", {})
+        status_enabled = bot_status.get("enabled", True)
+        activity_type = bot_status.get("activity_type", "watching")
+        message = bot_status.get("message", "marketplace reviews")
+        status_type = bot_status.get("status_type", "online")
+        
+        status_display = f"**Status:** {'✅ Enabled' if status_enabled else '❌ Disabled'}"
+        if status_enabled:
+            status_display += f"\n**Activity:** {activity_type.title()} {message}\n**Type:** {status_type.title()}"
+        
+        embed.add_field(
+            name="🤖 Bot Status",
+            value=status_display,
             inline=True
         )
 
@@ -376,6 +402,15 @@ class AutoCloseSettingsModal(discord.ui.Modal):
             required=True
         )
         self.add_item(self.hours)
+        
+        self.admin_confirmation = discord.ui.TextInput(
+            label="Admin Close Confirmation (true/false)",
+            placeholder="true or false",
+            default=str(config.get("admin_close_confirmation", True)).lower(),
+            max_length=5,
+            required=True
+        )
+        self.add_item(self.admin_confirmation)
 
     async def on_submit(self, interaction: discord.Interaction):
         config = load_config()
@@ -395,12 +430,21 @@ class AutoCloseSettingsModal(discord.ui.Modal):
         except ValueError:
             return await interaction.response.send_message("❌ Hours must be a valid number", ephemeral=True)
 
+        # Validate admin confirmation setting
+        admin_confirmation_value = self.admin_confirmation.value.lower().strip()
+        if admin_confirmation_value not in ["true", "false"]:
+            return await interaction.response.send_message("❌ Admin confirmation must be 'true' or 'false'", ephemeral=True)
+        
+        admin_confirmation = admin_confirmation_value == "true"
+
         # Save changes
         old_enabled = config.get("auto_close_enabled", True)
         old_hours = config.get("auto_close_hours", 24)
+        old_admin_confirmation = config.get("admin_close_confirmation", True)
         
         config["auto_close_enabled"] = enabled
         config["auto_close_hours"] = hours
+        config["admin_close_confirmation"] = admin_confirmation
         
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             yaml.dump(config, f)
@@ -412,6 +456,7 @@ class AutoCloseSettingsModal(discord.ui.Modal):
         )
         embed.add_field(name="Enabled", value=f"{old_enabled} → **{enabled}**", inline=True)
         embed.add_field(name="Hours", value=f"{old_hours} → **{hours}**", inline=True)
+        embed.add_field(name="Admin Confirmation", value=f"{old_admin_confirmation} → **{admin_confirmation}**", inline=True)
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -427,6 +472,7 @@ class AutoCloseSettingsModal(discord.ui.Modal):
                 )
                 log_embed.add_field(name="Enabled", value=f"{old_enabled} → {enabled}", inline=True)
                 log_embed.add_field(name="Hours", value=f"{old_hours} → {hours}", inline=True)
+                log_embed.add_field(name="Admin Confirmation", value=f"{old_admin_confirmation} → {admin_confirmation}", inline=True)
                 log_embed.timestamp = datetime.now()
                 await log_ch.send(embed=log_embed)
 
@@ -545,6 +591,168 @@ class ServerSettingsModal(discord.ui.Modal):
                 )
                 log_embed.timestamp = datetime.now()
                 await log_ch.send(embed=log_embed)
+
+class BotStatusSettingsModal(discord.ui.Modal):
+    def __init__(self):
+        super().__init__(title="Bot Status Settings")
+        
+        config = load_config()
+        bot_status = config.get("bot_status", {})
+        
+        self.enabled = discord.ui.TextInput(
+            label="Enable Custom Status (true/false)",
+            placeholder="true or false",
+            default=str(bot_status.get("enabled", True)).lower(),
+            max_length=5,
+            required=True
+        )
+        self.add_item(self.enabled)
+        
+        self.activity_type = discord.ui.TextInput(
+            label="Activity Type",
+            placeholder="playing, listening, watching, competing, streaming",
+            default=bot_status.get("activity_type", "watching"),
+            max_length=15,
+            required=True
+        )
+        self.add_item(self.activity_type)
+        
+        self.message = discord.ui.TextInput(
+            label="Status Message",
+            placeholder="What the bot is doing (e.g. marketplace reviews)",
+            default=bot_status.get("message", "marketplace reviews"),
+            max_length=100,
+            required=True
+        )
+        self.add_item(self.message)
+        
+        self.status_type = discord.ui.TextInput(
+            label="Status Type",
+            placeholder="online, idle, dnd, invisible",
+            default=bot_status.get("status_type", "online"),
+            max_length=10,
+            required=True
+        )
+        self.add_item(self.status_type)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        # Validate enabled setting
+        enabled_value = self.enabled.value.lower().strip()
+        if enabled_value not in ["true", "false"]:
+            return await interaction.response.send_message("❌ Enabled must be 'true' or 'false'", ephemeral=True)
+        
+        enabled = enabled_value == "true"
+        
+        # Validate activity type
+        valid_activities = ["playing", "listening", "watching", "competing", "streaming"]
+        activity_type = self.activity_type.value.lower().strip()
+        if activity_type not in valid_activities:
+            return await interaction.response.send_message(
+                f"❌ Activity type must be one of: {', '.join(valid_activities)}", 
+                ephemeral=True
+            )
+        
+        # Validate status type
+        valid_statuses = ["online", "idle", "dnd", "invisible"]
+        status_type = self.status_type.value.lower().strip()
+        if status_type not in valid_statuses:
+            return await interaction.response.send_message(
+                f"❌ Status type must be one of: {', '.join(valid_statuses)}", 
+                ephemeral=True
+            )
+        
+        message = self.message.value.strip()
+        if not message:
+            return await interaction.response.send_message("❌ Status message cannot be empty", ephemeral=True)
+
+        # Save changes
+        old_bot_status = config.get("bot_status", {})
+        config["bot_status"] = {
+            "enabled": enabled,
+            "activity_type": activity_type,
+            "message": message,
+            "status_type": status_type
+        }
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+
+        # Update bot status immediately if enabled
+        if enabled:
+            await self.update_bot_status(interaction.client, activity_type, message, status_type)
+
+        # Create response
+        embed = discord.Embed(
+            title="✅ Bot Status Settings Updated",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Enabled", value=f"**{enabled}**", inline=True)
+        embed.add_field(name="Activity", value=f"**{activity_type.title()}**", inline=True)
+        embed.add_field(name="Message", value=f"**{message}**", inline=True)
+        embed.add_field(name="Status", value=f"**{status_type.title()}**", inline=True)
+        
+        if enabled:
+            embed.add_field(name="Result", value=f"{activity_type.title()} {message}", inline=False)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Log the changes
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🤖 Bot Status Settings Modified",
+                    description=f"{interaction.user.mention} updated bot status settings",
+                    color=discord.Color.blue()
+                )
+                log_embed.add_field(name="Enabled", value=str(enabled), inline=True)
+                log_embed.add_field(name="Activity", value=activity_type, inline=True)
+                log_embed.add_field(name="Message", value=message, inline=True)
+                log_embed.add_field(name="Status Type", value=status_type, inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+                
+        print(f"[BOT-STATUS] {interaction.user} updated bot status: {activity_type} {message} ({status_type})")
+
+    async def update_bot_status(self, bot, activity_type: str, message: str, status_type: str):
+        """Update the bot's Discord status"""
+        try:
+            # Map status types to discord.py enums
+            status_map = {
+                "online": discord.Status.online,
+                "idle": discord.Status.idle,
+                "dnd": discord.Status.dnd,
+                "invisible": discord.Status.invisible
+            }
+            
+            # Map activity types to discord.py activity types
+            activity_map = {
+                "playing": discord.ActivityType.playing,
+                "listening": discord.ActivityType.listening,
+                "watching": discord.ActivityType.watching,
+                "competing": discord.ActivityType.competing,
+                "streaming": discord.ActivityType.streaming
+            }
+            
+            status = status_map.get(status_type, discord.Status.online)
+            activity_enum = activity_map.get(activity_type, discord.ActivityType.watching)
+            
+            # Create activity
+            if activity_type == "streaming":
+                # For streaming, we need a URL (using a placeholder)
+                activity = discord.Streaming(name=message, url="https://twitch.tv/placeholder")
+            else:
+                activity = discord.Activity(type=activity_enum, name=message)
+            
+            # Update bot status
+            await bot.change_presence(status=status, activity=activity)
+            print(f"[BOT-STATUS] Updated bot status: {activity_type} {message} ({status_type})")
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to update bot status: {e}")
 
 class AutoCloseView(discord.ui.View):
     def __init__(self, thread: discord.Thread = None):
@@ -787,6 +995,75 @@ class CloseConfirmationModal(discord.ui.Modal):
             locked=True
         )
 
+class AdminCloseConfirmationModal(discord.ui.Modal):
+    def __init__(self, thread: discord.Thread, admin_user: discord.Member):
+        super().__init__(title="Admin Close Post Confirmation")
+        self.thread = thread
+        self.admin_user = admin_user
+        
+        self.confirmation = discord.ui.TextInput(
+            label="Type 'Yes' to confirm admin closure",
+            placeholder="Yes",
+            required=True,
+            max_length=3
+        )
+        self.add_item(self.confirmation)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        if self.confirmation.value.lower() != "yes":
+            await interaction.response.send_message(
+                "❌ Admin closure cancelled. You must type 'Yes' to confirm.",
+                ephemeral=True
+            )
+            return
+        
+        # Proceed with admin closing the post
+        closure_message = f"🔒 This thread has been closed by admin {self.admin_user.mention}."
+        log_status = f"❌ Force closed by admin {self.admin_user.mention} at <t:{int(time.time())}:T>"
+        
+        await interaction.response.send_message(closure_message, ephemeral=False)
+        
+        # Update thread log
+        logging_cog = interaction.client.get_cog("LoggingSystem")
+        if logging_cog:
+            await logging_cog.update_thread_log(
+                self.thread,
+                field_updates={"Thread Status": log_status}
+            )
+        
+        # Archive & lock
+        await self.thread.edit(archived=True, locked=True)
+        
+        # Update thread status in database
+        db.upsert_thread(
+            thread_id=self.thread.id,
+            channel_id=self.thread.parent_id,
+            guild_id=self.thread.guild.id,
+            name=self.thread.name,
+            owner_id=self.thread.owner_id,
+            jump_url=self.thread.jump_url,
+            archived=True,
+            locked=True
+        )
+        
+        # Log admin closure
+        config = load_config()
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🔒 Admin Force Close",
+                    description=f"{self.admin_user.mention} force-closed thread [{self.thread.name}]({self.thread.jump_url})",
+                    color=discord.Color.red()
+                )
+                log_embed.add_field(name="Thread Owner", value=f"<@{self.thread.owner_id}>", inline=True)
+                log_embed.add_field(name="Action", value="Force closed by admin", inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+        
+        print(f"[ADMIN-CLOSE] {self.admin_user} force-closed thread {self.thread.id} ({self.thread.name})")
+
 # Load the category→messages mapping
 def load_rep_messages():
     cats = {"good": [], "neutral": [], "bad": []}
@@ -916,16 +1193,57 @@ class ReviewButtonView(discord.ui.View):
         
         # Check if user is OP or admin
         is_owner = interaction.user.id == op_id
-        is_admin = is_admin(interaction.user)
+        is_user_admin = is_admin(interaction.user)
         
         # 1) Only the OP or admins may close
-        if not is_owner and not is_admin:
+        if not is_owner and not is_user_admin:
             return await interaction.response.send_message(
                 "Only the thread creator or admins can close this post.", ephemeral=True
             )
 
-        # 2) For non-admin users (OP), check if there's at least one review
-        if not is_admin:
+        # 2) Check for admin confirmation setting
+        config = load_config()
+        admin_confirmation_enabled = config.get("admin_close_confirmation", True)
+        
+        # Admin users - check if confirmation is required
+        if is_user_admin and not is_owner:
+            if admin_confirmation_enabled:
+                modal = AdminCloseConfirmationModal(thread, interaction.user)
+                await interaction.response.send_modal(modal)
+                return
+            else:
+                # Direct admin close without confirmation
+                closure_message = f"🔒 This thread has been closed by admin {interaction.user.mention}."
+                log_status = f"❌ Force closed by admin {interaction.user.mention} at <t:{int(time.time())}:T>"
+                
+                await interaction.response.send_message(closure_message, ephemeral=False)
+                
+                # Update thread log
+                logging_cog = interaction.client.get_cog("LoggingSystem")
+                if logging_cog:
+                    await logging_cog.update_thread_log(
+                        thread,
+                        field_updates={"Thread Status": log_status}
+                    )
+                
+                # Archive & lock
+                await thread.edit(archived=True, locked=True)
+                
+                # Update thread status in database
+                db.upsert_thread(
+                    thread_id=thread.id,
+                    channel_id=thread.parent_id,
+                    guild_id=thread.guild.id,
+                    name=thread.name,
+                    owner_id=thread.owner_id,
+                    jump_url=thread.jump_url,
+                    archived=True,
+                    locked=True
+                )
+                return
+
+        # 3) For thread owner (OP), check if there's at least one review
+        if is_owner:
             conn = sqlite3.connect(db.DB_PATH)
             c = conn.cursor()
             c.execute(
@@ -941,18 +1259,13 @@ class ReviewButtonView(discord.ui.View):
                 await interaction.response.send_modal(modal)
                 return
 
-        # 3) Announce closure with different messages for different users
-        if is_admin and not is_owner:
-            closure_message = f"🔒 This thread has been closed by admin {interaction.user.mention}."
-            log_status = f"❌ Force closed by admin {interaction.user.mention} at <t:{int(time.time())}:T>"
-        else:
-            # Post creator closing with reviews
-            closure_message = "🔒 This thread is now closed by its creator."
-            log_status = f"❌ Closed at <t:{int(time.time())}:T>"
+        # 4) Thread owner closing with reviews (direct close)
+        closure_message = "🔒 This thread is now closed by its creator."
+        log_status = f"❌ Closed at <t:{int(time.time())}:T>"
         
         await interaction.response.send_message(closure_message, ephemeral=False)
 
-        # 4) Update thread log to Closed
+        # 5) Update thread log to Closed
         logging_cog = interaction.client.get_cog("LoggingSystem")
         if logging_cog:
             await logging_cog.update_thread_log(
@@ -960,10 +1273,10 @@ class ReviewButtonView(discord.ui.View):
                 field_updates={"Thread Status": log_status}
             )
 
-        # 5) Archive & lock
+        # 6) Archive & lock
         await thread.edit(archived=True, locked=True)
         
-        # 6) Update thread status in database
+        # 7) Update thread status in database
         db.upsert_thread(
             thread_id=thread.id,
             channel_id=thread.parent_id,
@@ -984,6 +1297,55 @@ class Rep(commands.Cog):
     async def cog_load(self):
         """Start background tasks when the cog loads"""
         self.auto_close_task.start()
+        
+        # Initialize bot status from config
+        await self.initialize_bot_status()
+    
+    async def initialize_bot_status(self):
+        """Initialize bot status from configuration on startup"""
+        try:
+            config = load_config()
+            bot_status = config.get("bot_status", {})
+            
+            if bot_status.get("enabled", True):
+                activity_type = bot_status.get("activity_type", "watching")
+                message = bot_status.get("message", "marketplace reviews")
+                status_type = bot_status.get("status_type", "online")
+                
+                # Map status types to discord.py enums
+                status_map = {
+                    "online": discord.Status.online,
+                    "idle": discord.Status.idle,
+                    "dnd": discord.Status.dnd,
+                    "invisible": discord.Status.invisible
+                }
+                
+                # Map activity types to discord.py activity types
+                activity_map = {
+                    "playing": discord.ActivityType.playing,
+                    "listening": discord.ActivityType.listening,
+                    "watching": discord.ActivityType.watching,
+                    "competing": discord.ActivityType.competing,
+                    "streaming": discord.ActivityType.streaming
+                }
+                
+                status = status_map.get(status_type, discord.Status.online)
+                activity_enum = activity_map.get(activity_type, discord.ActivityType.watching)
+                
+                # Create activity
+                if activity_type == "streaming":
+                    activity = discord.Streaming(name=message, url="https://twitch.tv/placeholder")
+                else:
+                    activity = discord.Activity(type=activity_enum, name=message)
+                
+                # Update bot status
+                await self.bot.change_presence(status=status, activity=activity)
+                print(f"[BOT-STATUS] Initialized: {activity_type} {message} ({status_type})")
+            else:
+                print("[BOT-STATUS] Custom status disabled in config")
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize bot status: {e}")
     
     async def cog_unload(self):
         """Stop background tasks when the cog unloads"""
