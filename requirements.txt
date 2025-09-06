@@ -5,9 +5,9 @@ python-dotenv
 
 # Web Dashboard Requirements
 Flask==2.3.3
+MarkupSafe==3.0.2
 Werkzeug==2.3.8
 Jinja2==3.1.6
-MarkupSafe==2.1.3
 click==8.1.8
 itsdangerous==2.2.0
 
