@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import yaml
 import random
@@ -7,6 +7,7 @@ import asyncio
 import sqlite3
 import time
 import re
+from datetime import datetime, timedelta
 from utils import db
 
 CONFIG_PATH = 'data/config.yaml'
@@ -194,6 +195,611 @@ def generate_star_rating(avg_rating: float, total_reviews: int) -> str | None:
     
     return f"Rating: {stars} ({avg_rating:.1f}/10 from {total_reviews} review{'s' if total_reviews != 1 else ''})"
 
+class SettingsView(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction):
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.interaction = interaction
+
+    @discord.ui.button(label="🔧 Auto-Close Settings", style=discord.ButtonStyle.primary, row=0)
+    async def auto_close_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can modify settings.", ephemeral=True)
+        
+        modal = AutoCloseSettingsModal()
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="📋 TOS Settings", style=discord.ButtonStyle.secondary, row=0)
+    async def tos_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can modify settings.", ephemeral=True)
+        
+        modal = TOSSettingsModal()
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="👑 Admin Settings", style=discord.ButtonStyle.success, row=1)
+    async def admin_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can view admin settings.", ephemeral=True)
+        
+        embed = await self.create_admin_settings_embed(interaction)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="🌐 Server Settings", style=discord.ButtonStyle.secondary, row=1)
+    async def server_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can modify settings.", ephemeral=True)
+        
+        modal = ServerSettingsModal()
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="🤖 Bot Status", style=discord.ButtonStyle.secondary, row=1)
+    async def bot_status_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not is_admin(interaction.user):
+            return await interaction.response.send_message("❌ Only admins can modify settings.", ephemeral=True)
+        
+        modal = BotStatusSettingsModal()
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="🔄 Refresh", style=discord.ButtonStyle.gray, row=2)
+    async def refresh_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = await self.create_main_settings_embed(interaction)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def create_main_settings_embed(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        embed = discord.Embed(
+            title="⚙️ Bot Settings Dashboard",
+            description="Click the buttons below to view or modify specific settings",
+            color=discord.Color.blue()
+        )
+
+        # Auto-Close Settings
+        auto_close_enabled = config.get("auto_close_enabled", True)
+        auto_close_hours = config.get("auto_close_hours", 24)
+        admin_confirmation = config.get("admin_close_confirmation", True)
+        embed.add_field(
+            name="🔧 Auto-Close Settings",
+            value=f"**Status:** {'✅ Enabled' if auto_close_enabled else '❌ Disabled'}\n**Timer:** {auto_close_hours} hours\n**Admin Confirm:** {'✅ Yes' if admin_confirmation else '❌ No'}",
+            inline=True
+        )
+
+        # Forum Settings
+        forums = config.get("forums", [])
+        forum_count = len(forums)
+        embed.add_field(
+            name="📁 Forum Channels",
+            value=f"**Tracking:** {forum_count} forum{'s' if forum_count != 1 else ''}",
+            inline=True
+        )
+
+        # Log Channel
+        log_channel = config.get("log_channel")
+        log_status = f"<#{log_channel}>" if log_channel else "Not set"
+        embed.add_field(
+            name="📝 Log Channel",
+            value=f"**Channel:** {log_status}",
+            inline=True
+        )
+
+        # Admin Settings
+        admin_ids = len(config.get("admin_ids", []))
+        admin_roles = len(config.get("admin_role_ids", []))
+        embed.add_field(
+            name="👑 Admin Settings",
+            value=f"**Users:** {admin_ids}\n**Roles:** {admin_roles}",
+            inline=True
+        )
+
+        # Server Settings
+        server_name = config.get("server_name", "Not set")
+        embed.add_field(
+            name="🌐 Server Info",
+            value=f"**Name:** {server_name[:20]}{'...' if len(server_name) > 20 else ''}",
+            inline=True
+        )
+
+        # TOS Settings
+        embed.add_field(
+            name="📋 TOS Settings",
+            value="**Message:** Configured\n**Decline:** Configured",
+            inline=True
+        )
+
+        # Bot Status Settings
+        bot_status = config.get("bot_status", {})
+        status_enabled = bot_status.get("enabled", True)
+        activity_type = bot_status.get("activity_type", "watching")
+        message = bot_status.get("message", "marketplace reviews")
+        status_type = bot_status.get("status_type", "online")
+        
+        status_display = f"**Status:** {'✅ Enabled' if status_enabled else '❌ Disabled'}"
+        if status_enabled:
+            status_display += f"\n**Activity:** {activity_type.title()} {message}\n**Type:** {status_type.title()}"
+        
+        embed.add_field(
+            name="🤖 Bot Status",
+            value=status_display,
+            inline=True
+        )
+
+        embed.set_footer(text="Use buttons to modify settings • Admin permissions required")
+        embed.timestamp = datetime.now()
+
+        return embed
+
+    async def create_admin_settings_embed(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        embed = discord.Embed(
+            title="👑 Admin Settings",
+            description="Current administrative users and roles",
+            color=discord.Color.purple()
+        )
+
+        # Admin Users
+        admin_ids = config.get("admin_ids", [])
+        if admin_ids:
+            admin_mentions = []
+            for admin_id in admin_ids[:10]:  # Limit to first 10
+                member = interaction.guild.get_member(admin_id)
+                if member:
+                    admin_mentions.append(f"• {member.mention}")
+                else:
+                    admin_mentions.append(f"• <@{admin_id}> (Not found)")
+            
+            if len(admin_ids) > 10:
+                admin_mentions.append(f"• ... and {len(admin_ids) - 10} more")
+                
+            embed.add_field(
+                name=f"Admin Users ({len(admin_ids)})",
+                value="\n".join(admin_mentions) if admin_mentions else "None",
+                inline=False
+            )
+
+        # Admin Roles
+        admin_role_ids = config.get("admin_role_ids", [])
+        if admin_role_ids:
+            role_mentions = []
+            for role_id in admin_role_ids:
+                role = interaction.guild.get_role(role_id)
+                if role:
+                    role_mentions.append(f"• {role.mention}")
+                else:
+                    role_mentions.append(f"• <@&{role_id}> (Role deleted)")
+                    
+            embed.add_field(
+                name=f"Admin Roles ({len(admin_role_ids)})",
+                value="\n".join(role_mentions) if role_mentions else "None",
+                inline=False
+            )
+
+        if not admin_ids and not admin_role_ids:
+            embed.description = "⚠️ No admins configured!"
+
+        return embed
+
+class AutoCloseSettingsModal(discord.ui.Modal):
+    def __init__(self):
+        super().__init__(title="Auto-Close Settings")
+        
+        config = load_config()
+        
+        self.enabled = discord.ui.TextInput(
+            label="Enable Auto-Close (true/false)",
+            placeholder="true or false",
+            default=str(config.get("auto_close_enabled", True)).lower(),
+            max_length=5,
+            required=True
+        )
+        self.add_item(self.enabled)
+        
+        self.hours = discord.ui.TextInput(
+            label="Auto-Close Hours (1-168)",
+            placeholder="Number of hours before auto-close",
+            default=str(config.get("auto_close_hours", 24)),
+            max_length=3,
+            required=True
+        )
+        self.add_item(self.hours)
+        
+        self.admin_confirmation = discord.ui.TextInput(
+            label="Admin Close Confirmation (true/false)",
+            placeholder="true or false",
+            default=str(config.get("admin_close_confirmation", True)).lower(),
+            max_length=5,
+            required=True
+        )
+        self.add_item(self.admin_confirmation)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        # Validate enabled setting
+        enabled_value = self.enabled.value.lower().strip()
+        if enabled_value not in ["true", "false"]:
+            return await interaction.response.send_message("❌ Enabled must be 'true' or 'false'", ephemeral=True)
+        
+        enabled = enabled_value == "true"
+        
+        # Validate hours
+        try:
+            hours = int(self.hours.value.strip())
+            if not (1 <= hours <= 168):
+                return await interaction.response.send_message("❌ Hours must be between 1 and 168", ephemeral=True)
+        except ValueError:
+            return await interaction.response.send_message("❌ Hours must be a valid number", ephemeral=True)
+
+        # Validate admin confirmation setting
+        admin_confirmation_value = self.admin_confirmation.value.lower().strip()
+        if admin_confirmation_value not in ["true", "false"]:
+            return await interaction.response.send_message("❌ Admin confirmation must be 'true' or 'false'", ephemeral=True)
+        
+        admin_confirmation = admin_confirmation_value == "true"
+
+        # Save changes
+        old_enabled = config.get("auto_close_enabled", True)
+        old_hours = config.get("auto_close_hours", 24)
+        old_admin_confirmation = config.get("admin_close_confirmation", True)
+        
+        config["auto_close_enabled"] = enabled
+        config["auto_close_hours"] = hours
+        config["admin_close_confirmation"] = admin_confirmation
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+
+        # Create response
+        embed = discord.Embed(
+            title="✅ Auto-Close Settings Updated",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Enabled", value=f"{old_enabled} → **{enabled}**", inline=True)
+        embed.add_field(name="Hours", value=f"{old_hours} → **{hours}**", inline=True)
+        embed.add_field(name="Admin Confirmation", value=f"{old_admin_confirmation} → **{admin_confirmation}**", inline=True)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Log the changes
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="⚙️ Auto-Close Settings Modified",
+                    description=f"{interaction.user.mention} updated auto-close settings",
+                    color=discord.Color.blue()
+                )
+                log_embed.add_field(name="Enabled", value=f"{old_enabled} → {enabled}", inline=True)
+                log_embed.add_field(name="Hours", value=f"{old_hours} → {hours}", inline=True)
+                log_embed.add_field(name="Admin Confirmation", value=f"{old_admin_confirmation} → {admin_confirmation}", inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+
+class TOSSettingsModal(discord.ui.Modal):
+    def __init__(self):
+        super().__init__(title="TOS Settings")
+        
+        config = load_config()
+        
+        self.tos_message = discord.ui.TextInput(
+            label="TOS Message",
+            placeholder="Message shown when threads are created...",
+            default=config.get("tos_message", ""),
+            style=discord.TextStyle.paragraph,
+            max_length=1000,
+            required=True
+        )
+        self.add_item(self.tos_message)
+        
+        self.decline_response = discord.ui.TextInput(
+            label="TOS Decline Response",
+            placeholder="Message when TOS is declined...",
+            default=config.get("tos_decline_response", ""),
+            style=discord.TextStyle.paragraph,
+            max_length=500,
+            required=True
+        )
+        self.add_item(self.decline_response)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        # Save changes
+        config["tos_message"] = self.tos_message.value.strip()
+        config["tos_decline_response"] = self.decline_response.value.strip()
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+
+        embed = discord.Embed(
+            title="✅ TOS Settings Updated",
+            description="Terms of Service messages have been updated",
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Log the changes
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="📋 TOS Settings Modified",
+                    description=f"{interaction.user.mention} updated TOS messages",
+                    color=discord.Color.blue()
+                )
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+
+class ServerSettingsModal(discord.ui.Modal):
+    def __init__(self):
+        super().__init__(title="Server Settings")
+        
+        config = load_config()
+        
+        self.server_name = discord.ui.TextInput(
+            label="Server Display Name",
+            placeholder="Name shown on web dashboard",
+            default=config.get("server_name", ""),
+            max_length=100,
+            required=True
+        )
+        self.add_item(self.server_name)
+        
+        self.server_invite = discord.ui.TextInput(
+            label="Server Invite Link",
+            placeholder="https://discord.gg/your-invite",
+            default=config.get("server_invite", ""),
+            max_length=200,
+            required=False
+        )
+        self.add_item(self.server_invite)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        # Save changes
+        config["server_name"] = self.server_name.value.strip()
+        if self.server_invite.value.strip():
+            config["server_invite"] = self.server_invite.value.strip()
+
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+
+        embed = discord.Embed(
+            title="✅ Server Settings Updated",
+            description="Server information has been updated",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Server Name", value=self.server_name.value, inline=False)
+        if self.server_invite.value.strip():
+            embed.add_field(name="Invite Link", value=self.server_invite.value, inline=False)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Log the changes
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🌐 Server Settings Modified",
+                    description=f"{interaction.user.mention} updated server information",
+                    color=discord.Color.blue()
+                )
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+
+class BotStatusSettingsModal(discord.ui.Modal):
+    def __init__(self):
+        super().__init__(title="Bot Status Settings")
+        
+        config = load_config()
+        bot_status = config.get("bot_status", {})
+        
+        self.enabled = discord.ui.TextInput(
+            label="Enable Custom Status (true/false)",
+            placeholder="true or false",
+            default=str(bot_status.get("enabled", True)).lower(),
+            max_length=5,
+            required=True
+        )
+        self.add_item(self.enabled)
+        
+        self.activity_type = discord.ui.TextInput(
+            label="Activity Type",
+            placeholder="playing, listening, watching, competing, streaming",
+            default=bot_status.get("activity_type", "watching"),
+            max_length=15,
+            required=True
+        )
+        self.add_item(self.activity_type)
+        
+        self.message = discord.ui.TextInput(
+            label="Status Message",
+            placeholder="What the bot is doing (e.g. marketplace reviews)",
+            default=bot_status.get("message", "marketplace reviews"),
+            max_length=100,
+            required=True
+        )
+        self.add_item(self.message)
+        
+        self.status_type = discord.ui.TextInput(
+            label="Status Type",
+            placeholder="online, idle, dnd, invisible",
+            default=bot_status.get("status_type", "online"),
+            max_length=10,
+            required=True
+        )
+        self.add_item(self.status_type)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        config = load_config()
+        
+        # Validate enabled setting
+        enabled_value = self.enabled.value.lower().strip()
+        if enabled_value not in ["true", "false"]:
+            return await interaction.response.send_message("❌ Enabled must be 'true' or 'false'", ephemeral=True)
+        
+        enabled = enabled_value == "true"
+        
+        # Validate activity type
+        valid_activities = ["playing", "listening", "watching", "competing", "streaming"]
+        activity_type = self.activity_type.value.lower().strip()
+        if activity_type not in valid_activities:
+            return await interaction.response.send_message(
+                f"❌ Activity type must be one of: {', '.join(valid_activities)}", 
+                ephemeral=True
+            )
+        
+        # Validate status type
+        valid_statuses = ["online", "idle", "dnd", "invisible"]
+        status_type = self.status_type.value.lower().strip()
+        if status_type not in valid_statuses:
+            return await interaction.response.send_message(
+                f"❌ Status type must be one of: {', '.join(valid_statuses)}", 
+                ephemeral=True
+            )
+        
+        message = self.message.value.strip()
+        if not message:
+            return await interaction.response.send_message("❌ Status message cannot be empty", ephemeral=True)
+
+        # Save changes
+        old_bot_status = config.get("bot_status", {})
+        config["bot_status"] = {
+            "enabled": enabled,
+            "activity_type": activity_type,
+            "message": message,
+            "status_type": status_type
+        }
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+
+        # Update bot status immediately if enabled
+        if enabled:
+            await self.update_bot_status(interaction.client, activity_type, message, status_type)
+
+        # Create response
+        embed = discord.Embed(
+            title="✅ Bot Status Settings Updated",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Enabled", value=f"**{enabled}**", inline=True)
+        embed.add_field(name="Activity", value=f"**{activity_type.title()}**", inline=True)
+        embed.add_field(name="Message", value=f"**{message}**", inline=True)
+        embed.add_field(name="Status", value=f"**{status_type.title()}**", inline=True)
+        
+        if enabled:
+            embed.add_field(name="Result", value=f"{activity_type.title()} {message}", inline=False)
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Log the changes
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🤖 Bot Status Settings Modified",
+                    description=f"{interaction.user.mention} updated bot status settings",
+                    color=discord.Color.blue()
+                )
+                log_embed.add_field(name="Enabled", value=str(enabled), inline=True)
+                log_embed.add_field(name="Activity", value=activity_type, inline=True)
+                log_embed.add_field(name="Message", value=message, inline=True)
+                log_embed.add_field(name="Status Type", value=status_type, inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+                
+        print(f"[BOT-STATUS] {interaction.user} updated bot status: {activity_type} {message} ({status_type})")
+
+    async def update_bot_status(self, bot, activity_type: str, message: str, status_type: str):
+        """Update the bot's Discord status"""
+        try:
+            # Map status types to discord.py enums
+            status_map = {
+                "online": discord.Status.online,
+                "idle": discord.Status.idle,
+                "dnd": discord.Status.dnd,
+                "invisible": discord.Status.invisible
+            }
+            
+            # Map activity types to discord.py activity types
+            activity_map = {
+                "playing": discord.ActivityType.playing,
+                "listening": discord.ActivityType.listening,
+                "watching": discord.ActivityType.watching,
+                "competing": discord.ActivityType.competing,
+                "streaming": discord.ActivityType.streaming
+            }
+            
+            status = status_map.get(status_type, discord.Status.online)
+            activity_enum = activity_map.get(activity_type, discord.ActivityType.watching)
+            
+            # Create activity
+            if activity_type == "streaming":
+                # For streaming, we need a URL (using a placeholder)
+                activity = discord.Streaming(name=message, url="https://twitch.tv/placeholder")
+            else:
+                activity = discord.Activity(type=activity_enum, name=message)
+            
+            # Update bot status
+            await bot.change_presence(status=status, activity=activity)
+            print(f"[BOT-STATUS] Updated bot status: {activity_type} {message} ({status_type})")
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to update bot status: {e}")
+
+class AutoCloseView(discord.ui.View):
+    def __init__(self, thread: discord.Thread = None):
+        super().__init__(timeout=None)
+        self.thread = thread
+
+    @discord.ui.button(custom_id="cancel_auto_close", label="I have multiple items - Keep thread open", style=discord.ButtonStyle.secondary)
+    async def cancel_auto_close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Get thread from interaction if not provided during init (persistent view)
+        thread = self.thread or interaction.channel
+        
+        # Only the thread owner can cancel auto-close
+        if interaction.user.id != thread.owner_id:
+            return await interaction.response.send_message(
+                "Only the thread owner can cancel auto-close.", ephemeral=True
+            )
+        
+        # Cancel the auto-close in database
+        db.cancel_thread_auto_close(thread.id)
+        
+        # Update the message to show it's been cancelled
+        embed = discord.Embed(
+            title="🔓 Auto-close Cancelled",
+            description="This thread will no longer be automatically closed. You can close it manually when ready.",
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        
+        # Log the cancellation
+        config = load_config()
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🔓 Auto-Close Cancelled",
+                    description=f"{interaction.user.mention} cancelled auto-close for [{thread.name}]({thread.jump_url})",
+                    color=discord.Color.green()
+                )
+                log_embed.add_field(name="Thread Owner", value=f"<@{thread.owner_id}>", inline=True)
+                log_embed.add_field(name="Reason", value="Multiple items in listing", inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+                
+        print(f"[AUTO-CLOSE] {interaction.user} cancelled auto-close for thread {thread.id} ({thread.name})")
+
 class ReviewModal(discord.ui.Modal):
     def __init__(self, thread: discord.Thread, receiver_id: int):
         super().__init__(title="Leave a Review")
@@ -261,6 +867,62 @@ class ReviewModal(discord.ui.Modal):
             embed.add_field(name="Review Notes", value=notes_value[:100] + "..." if len(notes_value) > 100 else notes_value, inline=False)
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Check if this is the first review in the thread
+        is_first = db.is_first_review_in_thread(self.thread.id)
+        
+        # Send mention to thread owner with review notification
+        mention_message = f"<@{self.receiver_id}> You received a **{rating_value}/10** review!"
+        
+        # Load config to check auto-close settings
+        config = load_config()
+        auto_close_enabled = config.get("auto_close_enabled", True)
+        
+        if is_first and auto_close_enabled:
+            # Schedule auto-close based on configured hours
+            auto_close_hours = config.get("auto_close_hours", 24)
+            close_time = time.time() + (auto_close_hours * 60 * 60)  # Convert hours to seconds
+            db.schedule_thread_auto_close(self.thread.id, close_time)
+            
+            # Create auto-close warning embed
+            auto_close_embed = discord.Embed(
+                title="⏰ Auto-Close Scheduled",
+                description=f"This thread will automatically close <t:{int(close_time)}:R> unless you cancel it below.",
+                color=discord.Color.orange()
+            )
+            auto_close_embed.add_field(
+                name="Why?", 
+                value="Threads auto-close after the first review to keep the marketplace clean. If you have multiple items in this listing, click the button below.",
+                inline=False
+            )
+            
+            view = AutoCloseView(self.thread)
+            await self.thread.send(content=mention_message, embed=auto_close_embed, view=view)
+            
+            # Log auto-close scheduling
+            log_ch_id = config.get("log_channel")
+            if log_ch_id:
+                log_ch = interaction.client.get_channel(log_ch_id)
+                if log_ch:
+                    log_embed = discord.Embed(
+                        title="⏰ Auto-Close Scheduled",
+                        description=f"Thread [{self.thread.name}]({self.thread.jump_url}) scheduled to auto-close <t:{int(close_time)}:R>",
+                        color=discord.Color.orange()
+                    )
+                    log_embed.add_field(name="Thread Owner", value=f"<@{self.receiver_id}>", inline=True)
+                    log_embed.add_field(name="Trigger", value="First review received", inline=True)
+                    log_embed.add_field(name="Timer", value=f"{auto_close_hours} hours", inline=True)
+                    log_embed.timestamp = datetime.now()
+                    await log_ch.send(embed=log_embed)
+                    
+            print(f"[AUTO-CLOSE] Scheduled thread {self.thread.id} ({self.thread.name}) to close in {auto_close_hours} hours")
+        else:
+            # Just send the mention for subsequent reviews or when auto-close is disabled
+            await self.thread.send(content=mention_message)
+            
+            # Log if auto-close is disabled but would have been triggered
+            if is_first and not auto_close_enabled:
+                print(f"[AUTO-CLOSE] First review in thread {self.thread.id} but auto-close is disabled")
         
         # Update thread log
         logging_cog = interaction.client.get_cog("LoggingSystem")
@@ -332,6 +994,75 @@ class CloseConfirmationModal(discord.ui.Modal):
             archived=True,
             locked=True
         )
+
+class AdminCloseConfirmationModal(discord.ui.Modal):
+    def __init__(self, thread: discord.Thread, admin_user: discord.Member):
+        super().__init__(title="Admin Close Post Confirmation")
+        self.thread = thread
+        self.admin_user = admin_user
+        
+        self.confirmation = discord.ui.TextInput(
+            label="Type 'Yes' to confirm admin closure",
+            placeholder="Yes",
+            required=True,
+            max_length=3
+        )
+        self.add_item(self.confirmation)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        if self.confirmation.value.lower() != "yes":
+            await interaction.response.send_message(
+                "❌ Admin closure cancelled. You must type 'Yes' to confirm.",
+                ephemeral=True
+            )
+            return
+        
+        # Proceed with admin closing the post
+        closure_message = f"🔒 This thread has been closed by admin {self.admin_user.mention}."
+        log_status = f"❌ Force closed by admin {self.admin_user.mention} at <t:{int(time.time())}:T>"
+        
+        await interaction.response.send_message(closure_message, ephemeral=False)
+        
+        # Update thread log
+        logging_cog = interaction.client.get_cog("LoggingSystem")
+        if logging_cog:
+            await logging_cog.update_thread_log(
+                self.thread,
+                field_updates={"Thread Status": log_status}
+            )
+        
+        # Archive & lock
+        await self.thread.edit(archived=True, locked=True)
+        
+        # Update thread status in database
+        db.upsert_thread(
+            thread_id=self.thread.id,
+            channel_id=self.thread.parent_id,
+            guild_id=self.thread.guild.id,
+            name=self.thread.name,
+            owner_id=self.thread.owner_id,
+            jump_url=self.thread.jump_url,
+            archived=True,
+            locked=True
+        )
+        
+        # Log admin closure
+        config = load_config()
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🔒 Admin Force Close",
+                    description=f"{self.admin_user.mention} force-closed thread [{self.thread.name}]({self.thread.jump_url})",
+                    color=discord.Color.red()
+                )
+                log_embed.add_field(name="Thread Owner", value=f"<@{self.thread.owner_id}>", inline=True)
+                log_embed.add_field(name="Action", value="Force closed by admin", inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+        
+        print(f"[ADMIN-CLOSE] {self.admin_user} force-closed thread {self.thread.id} ({self.thread.name})")
 
 # Load the category→messages mapping
 def load_rep_messages():
@@ -462,16 +1193,57 @@ class ReviewButtonView(discord.ui.View):
         
         # Check if user is OP or admin
         is_owner = interaction.user.id == op_id
-        is_admin = is_admin(interaction.user)
+        is_user_admin = is_admin(interaction.user)
         
         # 1) Only the OP or admins may close
-        if not is_owner and not is_admin:
+        if not is_owner and not is_user_admin:
             return await interaction.response.send_message(
                 "Only the thread creator or admins can close this post.", ephemeral=True
             )
 
-        # 2) For non-admin users (OP), check if there's at least one review
-        if not is_admin:
+        # 2) Check for admin confirmation setting
+        config = load_config()
+        admin_confirmation_enabled = config.get("admin_close_confirmation", True)
+        
+        # Admin users - check if confirmation is required
+        if is_user_admin and not is_owner:
+            if admin_confirmation_enabled:
+                modal = AdminCloseConfirmationModal(thread, interaction.user)
+                await interaction.response.send_modal(modal)
+                return
+            else:
+                # Direct admin close without confirmation
+                closure_message = f"🔒 This thread has been closed by admin {interaction.user.mention}."
+                log_status = f"❌ Force closed by admin {interaction.user.mention} at <t:{int(time.time())}:T>"
+                
+                await interaction.response.send_message(closure_message, ephemeral=False)
+                
+                # Update thread log
+                logging_cog = interaction.client.get_cog("LoggingSystem")
+                if logging_cog:
+                    await logging_cog.update_thread_log(
+                        thread,
+                        field_updates={"Thread Status": log_status}
+                    )
+                
+                # Archive & lock
+                await thread.edit(archived=True, locked=True)
+                
+                # Update thread status in database
+                db.upsert_thread(
+                    thread_id=thread.id,
+                    channel_id=thread.parent_id,
+                    guild_id=thread.guild.id,
+                    name=thread.name,
+                    owner_id=thread.owner_id,
+                    jump_url=thread.jump_url,
+                    archived=True,
+                    locked=True
+                )
+                return
+
+        # 3) For thread owner (OP), check if there's at least one review
+        if is_owner:
             conn = sqlite3.connect(db.DB_PATH)
             c = conn.cursor()
             c.execute(
@@ -487,18 +1259,13 @@ class ReviewButtonView(discord.ui.View):
                 await interaction.response.send_modal(modal)
                 return
 
-        # 3) Announce closure with different messages for different users
-        if is_admin and not is_owner:
-            closure_message = f"🔒 This thread has been closed by admin {interaction.user.mention}."
-            log_status = f"❌ Force closed by admin {interaction.user.mention} at <t:{int(time.time())}:T>"
-        else:
-            # Post creator closing with reviews
-            closure_message = "🔒 This thread is now closed by its creator."
-            log_status = f"❌ Closed at <t:{int(time.time())}:T>"
+        # 4) Thread owner closing with reviews (direct close)
+        closure_message = "🔒 This thread is now closed by its creator."
+        log_status = f"❌ Closed at <t:{int(time.time())}:T>"
         
         await interaction.response.send_message(closure_message, ephemeral=False)
 
-        # 4) Update thread log to Closed
+        # 5) Update thread log to Closed
         logging_cog = interaction.client.get_cog("LoggingSystem")
         if logging_cog:
             await logging_cog.update_thread_log(
@@ -506,10 +1273,10 @@ class ReviewButtonView(discord.ui.View):
                 field_updates={"Thread Status": log_status}
             )
 
-        # 5) Archive & lock
+        # 6) Archive & lock
         await thread.edit(archived=True, locked=True)
         
-        # 6) Update thread status in database
+        # 7) Update thread status in database
         db.upsert_thread(
             thread_id=thread.id,
             channel_id=thread.parent_id,
@@ -526,6 +1293,150 @@ class Rep(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         print("🔧 Rep cog loaded")
+        
+    async def cog_load(self):
+        """Start background tasks when the cog loads"""
+        self.auto_close_task.start()
+        
+        # Initialize bot status from config
+        await self.initialize_bot_status()
+    
+    async def initialize_bot_status(self):
+        """Initialize bot status from configuration on startup"""
+        try:
+            config = load_config()
+            bot_status = config.get("bot_status", {})
+            
+            if bot_status.get("enabled", True):
+                activity_type = bot_status.get("activity_type", "watching")
+                message = bot_status.get("message", "marketplace reviews")
+                status_type = bot_status.get("status_type", "online")
+                
+                # Map status types to discord.py enums
+                status_map = {
+                    "online": discord.Status.online,
+                    "idle": discord.Status.idle,
+                    "dnd": discord.Status.dnd,
+                    "invisible": discord.Status.invisible
+                }
+                
+                # Map activity types to discord.py activity types
+                activity_map = {
+                    "playing": discord.ActivityType.playing,
+                    "listening": discord.ActivityType.listening,
+                    "watching": discord.ActivityType.watching,
+                    "competing": discord.ActivityType.competing,
+                    "streaming": discord.ActivityType.streaming
+                }
+                
+                status = status_map.get(status_type, discord.Status.online)
+                activity_enum = activity_map.get(activity_type, discord.ActivityType.watching)
+                
+                # Create activity
+                if activity_type == "streaming":
+                    activity = discord.Streaming(name=message, url="https://twitch.tv/placeholder")
+                else:
+                    activity = discord.Activity(type=activity_enum, name=message)
+                
+                # Update bot status
+                await self.bot.change_presence(status=status, activity=activity)
+                print(f"[BOT-STATUS] Initialized: {activity_type} {message} ({status_type})")
+            else:
+                print("[BOT-STATUS] Custom status disabled in config")
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize bot status: {e}")
+    
+    async def cog_unload(self):
+        """Stop background tasks when the cog unloads"""
+        self.auto_close_task.cancel()
+    
+    @tasks.loop(minutes=10)  # Check every 10 minutes
+    async def auto_close_task(self):
+        """Background task to auto-close threads that have passed their scheduled time"""
+        try:
+            threads_to_close = db.get_threads_to_auto_close()
+            
+            if threads_to_close:
+                print(f"[AUTO-CLOSE] Found {len(threads_to_close)} thread(s) ready for auto-close")
+            
+            for thread_data in threads_to_close:
+                try:
+                    # Get the actual thread object
+                    channel = self.bot.get_channel(thread_data['channel_id'])
+                    if not channel:
+                        continue
+                        
+                    thread = channel.get_thread(thread_data['thread_id'])
+                    if not thread:
+                        continue
+                    
+                    # Send auto-close notification
+                    embed = discord.Embed(
+                        title="🔒 Thread Auto-Closed",
+                        description="This thread was automatically closed 24 hours after receiving its first review.",
+                        color=discord.Color.red()
+                    )
+                    embed.add_field(
+                        name="Why did this happen?",
+                        value="To keep the marketplace clean, threads automatically close after receiving reviews. This helps prevent clutter from completed transactions.",
+                        inline=False
+                    )
+                    
+                    await thread.send(embed=embed)
+                    
+                    # Update thread log
+                    logging_cog = self.bot.get_cog("LoggingSystem")
+                    if logging_cog:
+                        await logging_cog.update_thread_log(
+                            thread,
+                            field_updates={"Thread Status": f"🤖 Auto-closed at <t:{int(time.time())}:T>"}
+                        )
+                    
+                    # Archive and lock the thread
+                    await thread.edit(archived=True, locked=True)
+                    
+                    # Update thread status in database
+                    db.upsert_thread(
+                        thread_id=thread.id,
+                        channel_id=thread.parent_id,
+                        guild_id=thread.guild.id,
+                        name=thread.name,
+                        owner_id=thread.owner_id,
+                        jump_url=thread.jump_url,
+                        archived=True,
+                        locked=True
+                    )
+                    
+                    # Log to log channel
+                    config = load_config()
+                    log_ch_id = config.get("log_channel")
+                    if log_ch_id:
+                        log_ch = self.bot.get_channel(log_ch_id)
+                        if log_ch:
+                            log_embed = discord.Embed(
+                                title="🤖 Thread Auto-Closed",
+                                description=f"Thread [{thread.name}]({thread.jump_url}) was automatically closed",
+                                color=discord.Color.red()
+                            )
+                            log_embed.add_field(name="Thread Owner", value=f"<@{thread.owner_id}>", inline=True)
+                            log_embed.add_field(name="Reason", value="24-hour timer expired", inline=True)
+                            log_embed.add_field(name="Action", value="Archived & Locked", inline=True)
+                            log_embed.timestamp = datetime.now()
+                            await log_ch.send(embed=log_embed)
+                    
+                    print(f"[AUTO-CLOSE] Successfully closed thread {thread.id} ({thread.name})")
+                    
+                except Exception as e:
+                    print(f"[ERROR] Failed to auto-close thread {thread_data['thread_id']}: {e}")
+                    
+        except Exception as e:
+            print(f"[ERROR] Auto-close task failed: {e}")
+    
+    @auto_close_task.before_loop
+    async def before_auto_close_task(self):
+        """Wait until the bot is ready before starting the auto-close task"""
+        await self.bot.wait_until_ready()
 
 
     @commands.Cog.listener()
@@ -902,5 +1813,199 @@ class Rep(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @app_commands.command(name="send_review_ui", description="Send the rate/close interface to the current thread (admin only).")
+    async def send_review_ui(self, interaction: discord.Interaction):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can use this command.", ephemeral=True
+            )
+            return
+        
+        # Check if command is used in a thread
+        if not isinstance(interaction.channel, discord.Thread):
+            await interaction.response.send_message(
+                "❌ This command can only be used in a thread.", ephemeral=True
+            )
+            return
+        
+        thread = interaction.channel
+        op_id = thread.owner_id
+        
+        # Send the review UI
+        await post_review_ui(thread, op_id)
+        
+        await interaction.response.send_message(
+            "✅ Rate/close interface sent to this thread.", ephemeral=True
+        )
+
+    @app_commands.command(name="auto_close_toggle", description="Toggle the auto-close feature on/off (admin only).")
+    @app_commands.describe(enabled="Enable or disable auto-close feature")
+    async def auto_close_toggle(self, interaction: discord.Interaction, enabled: bool = None):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can toggle auto-close settings.", ephemeral=True
+            )
+            return
+        
+        config = load_config()
+        
+        # If no parameter provided, show current status
+        if enabled is None:
+            current_status = config.get("auto_close_enabled", True)
+            current_hours = config.get("auto_close_hours", 24)
+            
+            embed = discord.Embed(
+                title="⚙️ Auto-Close Settings",
+                description=f"**Status:** {'✅ Enabled' if current_status else '❌ Disabled'}",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Auto-Close Timer", value=f"{current_hours} hours", inline=True)
+            embed.add_field(name="Usage", value="Use `/auto_close_toggle true/false` to change", inline=False)
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        # Update the setting
+        old_status = config.get("auto_close_enabled", True)
+        config["auto_close_enabled"] = enabled
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+        
+        # Create response embed
+        status_text = "✅ Enabled" if enabled else "❌ Disabled"
+        color = discord.Color.green() if enabled else discord.Color.red()
+        
+        embed = discord.Embed(
+            title="⚙️ Auto-Close Setting Updated",
+            description=f"Auto-close feature is now **{status_text}**",
+            color=color
+        )
+        
+        if enabled:
+            hours = config.get("auto_close_hours", 24)
+            embed.add_field(
+                name="Timer", 
+                value=f"Threads will auto-close {hours} hours after first review", 
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="Note", 
+                value="Existing scheduled auto-closes will still occur unless manually cancelled", 
+                inline=False
+            )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Log the change to log channel
+        config_log = load_config()
+        log_ch_id = config_log.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="🔧 Auto-Close Setting Changed",
+                    description=f"{interaction.user.mention} **{'enabled' if enabled else 'disabled'}** the auto-close feature",
+                    color=color
+                )
+                log_embed.add_field(name="Previous Status", value="✅ Enabled" if old_status else "❌ Disabled", inline=True)
+                log_embed.add_field(name="New Status", value=status_text, inline=True)
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+        
+        print(f"[AUTO-CLOSE] {interaction.user} ({'enabled' if enabled else 'disabled'}) auto-close feature")
+
+    @app_commands.command(name="auto_close_hours", description="Set the number of hours before auto-close (admin only).")
+    @app_commands.describe(hours="Number of hours to wait before auto-closing threads (1-168)")
+    async def auto_close_hours(self, interaction: discord.Interaction, hours: int):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can modify auto-close settings.", ephemeral=True
+            )
+            return
+        
+        # Validate hours (1 hour to 1 week)
+        if not (1 <= hours <= 168):
+            await interaction.response.send_message(
+                "❌ Hours must be between 1 and 168 (1 week).", ephemeral=True
+            )
+            return
+        
+        config = load_config()
+        old_hours = config.get("auto_close_hours", 24)
+        config["auto_close_hours"] = hours
+        
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f)
+        
+        embed = discord.Embed(
+            title="⏰ Auto-Close Timer Updated",
+            description=f"Auto-close timer set to **{hours} hours**",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Previous", value=f"{old_hours} hours", inline=True)
+        embed.add_field(name="New", value=f"{hours} hours", inline=True)
+        embed.add_field(
+            name="Note", 
+            value="This only affects new auto-close schedules. Existing ones keep their original timing.", 
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Log the change
+        config_log = load_config()
+        log_ch_id = config_log.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="⏰ Auto-Close Timer Changed",
+                    description=f"{interaction.user.mention} changed auto-close timer from **{old_hours}h** to **{hours}h**",
+                    color=discord.Color.blue()
+                )
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+        
+        print(f"[AUTO-CLOSE] {interaction.user} changed auto-close timer to {hours} hours")
+
+    @app_commands.command(name="settings", description="View and modify bot settings through an interactive interface (admin only).")
+    async def settings_command(self, interaction: discord.Interaction):
+        # Check if user is admin
+        if not is_admin(interaction.user):
+            await interaction.response.send_message(
+                "❌ Only admins can access bot settings.", ephemeral=True
+            )
+            return
+
+        # Create the settings view and embed
+        view = SettingsView(interaction)
+        embed = await view.create_main_settings_embed(interaction)
+        
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+        # Log settings access
+        config = load_config()
+        log_ch_id = config.get("log_channel")
+        if log_ch_id:
+            log_ch = interaction.client.get_channel(log_ch_id)
+            if log_ch:
+                log_embed = discord.Embed(
+                    title="⚙️ Settings Panel Accessed",
+                    description=f"{interaction.user.mention} opened the settings dashboard",
+                    color=discord.Color.blue()
+                )
+                log_embed.timestamp = datetime.now()
+                await log_ch.send(embed=log_embed)
+
+        print(f"[SETTINGS] {interaction.user} accessed settings dashboard")
+
 async def setup(bot: commands.Bot):
+    # Add persistent views
+    bot.add_view(ReviewButtonView())
+    bot.add_view(AutoCloseView(None))  # Template view for persistent handling
     await bot.add_cog(Rep(bot))

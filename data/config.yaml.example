@@ -1,4 +1,4 @@
-# Discord Reputation Bot V3.0-beta Configuration
+# Discord Reputation Bot V3.1 Configuration
 # Copy this file to config.yaml and update with your server's information
 
 # ═══════════════════════════════════════════════════════════
@@ -45,6 +45,26 @@ tos_message: |
 # TOS Decline Response - Message shown when user declines TOS
 tos_decline_response: |
   Marketplace terms not accepted. Thread will now be closed.
+
+# ═══════════════════════════════════════════════════════════
+#                 AUTO-CLOSE SETTINGS (V3.1)
+# ═══════════════════════════════════════════════════════════
+
+# Auto-Close Feature - NEW in V3.1
+# Automatically closes marketplace threads after receiving the first review
+# to keep the server clean and prevent clutter from completed transactions
+auto_close_enabled: true  # Set to false to disable auto-close feature entirely
+auto_close_hours: 24      # Hours to wait before auto-closing (1-168 hours, default: 24)
+
+# Admin Confirmation Settings - NEW in V3.1
+# Controls whether admins need to confirm before force-closing posts
+admin_close_confirmation: true  # Set to false to allow instant admin closes without confirmation
+
+# How it works:
+# 1. When a thread receives its FIRST review, a 24-hour countdown begins
+# 2. Thread owner gets a warning message with a button to cancel if they have multiple items
+# 3. After 24 hours (or configured time), the thread automatically closes
+# 4. Admins can modify these settings using /settings or /auto_close_toggle commands
 
 # ═══════════════════════════════════════════════════════════
 #                  WEB DASHBOARD SETTINGS
@@ -94,22 +114,62 @@ webhook_url: ""
 webhook_secret: ""
 
 # ═══════════════════════════════════════════════════════════
-#                      ADVANCED SETTINGS
+#                      ADVANCED SETTINGS (V3.1)
 # ═══════════════════════════════════════════════════════════
 
-# You can add additional custom settings here for future features
-# These settings are optional and can be left as-is
-
-# Custom bot status messages (future feature)
-# status_messages:
-#   - "Managing marketplace reviews"
-#   - "Keeping the community safe"
+# Bot Status Settings - NEW in V3.1
+# Customize your bot's Discord status message and activity type
+bot_status:
+  enabled: true                    # Enable custom bot status
+  activity_type: "watching"        # Options: playing, listening, watching, competing, streaming
+  message: "marketplace reviews"   # Status message (e.g. "Playing marketplace reviews")
+  status_type: "online"           # Options: online, idle, dnd, invisible
+  
+# Multiple Status Messages - Rotate through different messages
+# Uncomment and customize the list below to enable rotation
+# status_rotation:
+#   enabled: false                 # Enable status rotation every few minutes
+#   interval_minutes: 10           # How often to change status (5-60 minutes)
+#   messages:
+#     - type: "watching"
+#       message: "marketplace reviews"
+#     - type: "playing" 
+#       message: "reputation manager"
+#     - type: "listening"
+#       message: "community feedback"
+#     - type: "watching"
+#       message: "for marketplace scams"
 
 # Review moderation settings (future feature)
 # moderation:
 #   auto_moderate: false
 #   flagged_words: []
 #   min_review_length: 10
+
+# ═══════════════════════════════════════════════════════════
+#                    V3.1 COMMAND REFERENCE
+# ═══════════════════════════════════════════════════════════
+
+# New Slash Commands in V3.1:
+# 
+# PUBLIC COMMANDS:
+# /reviews <user>          - Check a user's reviews and ratings
+# /leaderboard            - Show top 10 rated users
+# 
+# ADMIN COMMANDS:
+# /settings               - Interactive settings dashboard (RECOMMENDED)
+# /auto_close_toggle      - Enable/disable auto-close feature
+# /auto_close_hours       - Set auto-close timer (1-168 hours)
+# /send_review_ui         - Manually send review interface to thread
+# /channel_set <channel>  - Add forum channel for tracking
+# /log <channel>          - Set log channel
+# /admin_add <user>       - Add admin user
+# /admin_remove <user>    - Remove admin user
+# /admin_list             - List all admins
+# /admin_role_add <role>  - Add admin role
+# /admin_role_remove <role> - Remove admin role
+#
+# TIP: Use /settings for easy configuration through interactive interface!
 
 # ═══════════════════════════════════════════════════════════
 #                      SETUP CHECKLIST
@@ -124,12 +184,16 @@ webhook_secret: ""
 # ✅ 5. Added your user ID to admin_ids
 # ✅ 6. Updated the TOS channel reference in tos_message
 # ✅ 7. Set your server name and invite link
-# ✅ 8. Invited the bot to your server with proper permissions
+# ✅ 8. Configured auto-close settings (NEW in V3.1)
+# ✅ 9. Invited the bot to your server with proper permissions
+# ✅ 10. Run !sync command after starting bot to register slash commands
 # 
 # Required bot permissions:
 # - Send Messages, Embed Links, Use Slash Commands
 # - Manage Threads, View Channels, Read Message History
 # - Connect, Speak (if using voice features in the future)
+#
+# AFTER SETUP: Use /settings command for easy configuration!
 
 # ═══════════════════════════════════════════════════════════
 #                      SUPPORT & DOCS
