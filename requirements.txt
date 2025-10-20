@@ -5,19 +5,19 @@ python-dotenv
 
 # Web Dashboard Requirements
 Flask==2.3.3
-MarkupSafe==3.0.2
+MarkupSafe==3.0.3
 Werkzeug==2.3.8
 Jinja2==3.1.6
-click==8.1.8
+click==8.3.0
 itsdangerous==2.2.0
 
 # Additional Dependencies (shared)
-aiohttp==3.12.15
+aiohttp==3.13.1
 aiosignal==1.4.0
 async-timeout==4.0.3
-attrs==25.3.0
-charset-normalizer==3.4.3
-frozenlist==1.7.0
-multidict==6.6.4
-yarl==1.20.1
+attrs==25.4.0
+charset-normalizer==3.4.4
+frozenlist==1.8.0
+multidict==6.7.0
+yarl==1.22.0
 requests>=2.31.0
