@@ -1,7 +1,6 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot version updates.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Review requests are handled by CODEOWNERS (the old `reviewers` key is deprecated).
 
 version: 2
 updates:
@@ -12,34 +11,31 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "Wk4021"
-    assignees:
-      - "Wk4021"
     commit-message:
       prefix: "deps"
       include: "scope"
     labels:
       - "dependencies"
       - "python"
-
-    # group ALL pip version updates into a single PR
+    # Group minor and patch updates into a single PR; majors get their own
     groups:
       python-deps:
-        applies-to: "version-updates"     # optional; defaults to version updates
         patterns:
-          - "*"                           # include every dependency
+          - "*"
         update-types:
           - "minor"
           - "patch"
-        # To also include majors in the same PR, add:
-        # - "major"
 
-    allow:
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
-    ignore:
-      - dependency-name: "Flask"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "Werkzeug"
-        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions:
+        patterns:
+          - "*"

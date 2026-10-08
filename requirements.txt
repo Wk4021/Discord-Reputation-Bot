@@ -1,23 +1,4 @@
-# Discord Bot Requirements
-discord.py>=2.3.2
-PyYAML
-python-dotenv
-
-# Web Dashboard Requirements
-Flask==2.3.3
-MarkupSafe==3.0.2
-Werkzeug==2.3.8
-Jinja2==3.1.6
-click==8.1.8
-itsdangerous==2.2.0
-
-# Additional Dependencies (shared)
-aiohttp==3.12.15
-aiosignal==1.4.0
-async-timeout==4.0.3
-attrs==25.3.0
-charset-normalizer==3.4.3
-frozenlist==1.7.0
-multidict==6.6.4
-yarl==1.20.1
-requests>=2.31.0
+# Runtime dependencies (Python 3.11+)
+discord.py>=2.5,<3  # 2.5 is the first release that works on Python 3.13+
+ruamel.yaml>=0.18,<0.20
+python-dotenv>=1.0

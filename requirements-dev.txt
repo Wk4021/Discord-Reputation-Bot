@@ -1,0 +1,4 @@
+# Development and CI tools
+pytest>=8
+flake8>=7
+PyYAML>=6.0.3  # used by tests to inspect saved config; first release with Python 3.14 wheels

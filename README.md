@@ -1,407 +1,160 @@
 <!-- PROJECT BADGES -->
 <p align="center">
-  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/actions"><img src="https://img.shields.io/github/actions/workflow/status/Wk4021/Marketplace-Discord-Rep-Bot/ci.yml?style=for-the-badge" alt="CI Status"/></a>
-  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/stargazers"><img src="https://img.shields.io/github/stars/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Stars"/></a>
-  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues"><img src="https://img.shields.io/github/issues/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="GitHub Issues"/></a>
+  <a href="https://github.com/Wk4021/Discord-Reputation-Bot/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Wk4021/Discord-Reputation-Bot/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI Status"/></a>
+  <a href="https://github.com/Wk4021/Discord-Reputation-Bot/stargazers"><img src="https://img.shields.io/github/stars/Wk4021/Discord-Reputation-Bot?style=for-the-badge" alt="GitHub Stars"/></a>
+  <a href="https://github.com/Wk4021/Discord-Reputation-Bot/issues"><img src="https://img.shields.io/github/issues/Wk4021/Discord-Reputation-Bot?style=for-the-badge" alt="GitHub Issues"/></a>
   <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458"><img src="https://img.shields.io/discord/765205625524584458?style=for-the-badge" alt="Discord Server"/></a>
-  <img src="https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge" alt="Python Version"/>
-  <a href="https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Wk4021/Marketplace-Discord-Rep-Bot?style=for-the-badge" alt="License"/></a>
+  <img src="https://img.shields.io/badge/Python-3.11%2B-blue?style=for-the-badge" alt="Python Version"/>
+  <a href="https://github.com/Wk4021/Discord-Reputation-Bot/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Wk4021/Discord-Reputation-Bot?style=for-the-badge" alt="License"/></a>
 </p>
 
-# 🌟 Discord Reputation Bot V3.1
+# 🌟 Discord Reputation Bot V3.2
 
-A **complete reputation system** for Discord marketplace communities featuring **star ratings**, **detailed reviews**, **auto-close management**, **interactive settings**, and **integrated web dashboard**. Transform your Discord server into a trusted marketplace with intelligent thread management, comprehensive moderation tools, and live Discord integration.
+A reputation system for Discord marketplace communities. Members review each other with **1–10 star ratings and notes** inside forum posts, the bot gates new posts behind your **Terms of Service**, and finished listings are **closed automatically** to keep the marketplace tidy.
 
-## 🆕 **What's New in V3.1**
-- 🕐 **Auto-Close System** (configurable thread closure after first review)
-- ⚙️ **Interactive Settings** (comprehensive `/settings` dashboard with modal forms)
-- 🔔 **Review Notifications** (users get mentioned when receiving reviews)
-- 🔘 **Cancel Controls** (thread owners can prevent auto-close for multiple items)
-- 🤖 **Background Tasks** (automated thread monitoring and closure)
-- 👑 **Enhanced Admin Tools** (role-based permissions, improved commands)
-- 📊 **Comprehensive Logging** (all actions logged to console and Discord)
-- 🛠️ **Better UX** (visual feedback, validation, error handling)
+## 🆕 What's New in V3.2
 
----
+- 🔒 **Security fixes**: every admin command is permission-checked, admin rights are limited to your own server, `!sync` is owner-only, and closed posts can no longer receive reviews
+- ⏰ **Reliable auto-close**: correct timing in every time zone, and archived posts are still closed
+- 🔁 **Restart-safe**: TOS prompts, buttons and log embeds keep working after the bot restarts
+- 🧹 **Cleaner threads**: the review panel updates in place instead of reposting after every review
+- 🗑️ **Web dashboard removed**: the bot is now Discord-only
+- 🧪 **Tests and CI**: a pytest suite runs on Python 3.11–3.14 for every pull request
 
 ## 🚀 Features
 
-### 🔒 **TOS Gating & Intelligent Thread Management**
-- **Smart TOS Prompts**: New threads require Terms of Service acceptance
-- **Live Countdown**: Discord timestamps show exact timeout
-- **Message Protection**: Auto-delete messages before TOS acceptance
-- **Smart Auto-Close**: Threads close automatically after first review (V3.1)
-- **Cancel Controls**: Thread owners can prevent closure for multiple items (V3.1)
-- **Background Monitoring**: Automated task checks every 10 minutes (V3.1)
-- **Admin Override**: Admins can force close any post with comprehensive logging
+### 🔒 TOS gating
+- New posts in tracked forums get a Terms of Service prompt with a live countdown
+- The post owner must agree before anyone can chat; declining or ignoring it closes the post
+- Messages sent while the prompt is pending are removed
 
-### ⭐ **Advanced Review System**
-- **1-10 Star Ratings**: Detailed rating system with visual stars
-- **Review Modal**: Professional popup for collecting ratings and notes
-- **Review Notes**: Detailed text feedback (up to 500 characters)
-- **User Notifications**: Instant mentions when users receive reviews (V3.1)
-- **Auto-Close Triggers**: First review starts configurable countdown (V3.1)
-- **Latest Reviews**: Display recent reviews with full context
-- **Average Ratings**: Smart calculation with star visualization
-- **Review History**: Complete review timeline for users
+### ⭐ Reviews
+- **⭐ Leave a Review** opens a form with a 1–10 rating and optional notes
+- Reviewers must have posted in the thread, can't review themselves, and can review each post once
+- The panel shows the owner's average rating, star bar and three latest reviews
+- `/reviews @user` and `/leaderboard` let anyone look up reputations
 
-### 🌐 **Integrated Web Dashboard**
-- **Live Discord Widget**: Real-time server activity and member status
-- **User Directory**: Complete list with search and filtering
-- **User Profiles**: Discord avatars, banners, roles, and badges
-- **Review Analytics**: Average ratings, review counts, activity metrics
-- **Post History**: Direct links to Discord threads with real URLs
-- **Dark/Light Mode**: Theme toggle with Discord widget synchronization
-- **Responsive Design**: Mobile-friendly interface with adaptive layouts
-- **Real-time Data**: Live updates from Discord API and database
-- **Thread Integration**: Persistent Discord post links stored in database
+### ⏰ Auto-close
+- A post's first review starts a configurable timer (default 24 hours)
+- The owner can cancel it with one click (useful for multi-item listings)
+- Owners can close their own posts; closing a post with no reviews asks for confirmation
 
-### 👑 **Enhanced Admin System**
-- **Interactive Settings**: Comprehensive `/settings` dashboard (V3.1)
-- **Role-Based Permissions**: Support for both user IDs and role IDs (V3.1)
-- **Auto-Close Management**: Toggle and configure auto-close system (V3.1)
-- **Configurable Admins**: Add/remove admins via commands or settings UI
-- **Force Close**: Override close restrictions for moderation
-- **Enhanced Logging**: All actions logged to console and Discord channels (V3.1)
-- **Modal Interfaces**: User-friendly forms for all configuration changes (V3.1)
-
-### 📊 **Analytics & Reporting**
-- **User Statistics**: Comprehensive user activity tracking
-- **Leaderboards**: Top rated users and most active reviewers
-- **Review Insights**: Detailed review analysis with direct post links
-- **Thread Tracking**: Persistent Discord thread data storage
-- **Live Server Stats**: Real-time member count and online activity
-- **Export Ready**: Database designed for analytics with thread URLs
-
-### 🛠️ **Modern Architecture**
-- **Modular Design**: Separated logging, review, and web systems
-- **Enhanced Database**: Thread tracking with Discord URLs
-- **API Integration**: RESTful endpoints for web dashboard and Discord
-- **Theme System**: CSS variables for light/dark mode switching
-- **Error Handling**: Comprehensive error management and logging
-- **Scalable**: Designed for high-volume communities with real-time updates
-
----
+### 👑 Administration
+- Server administrators, listed users and listed roles are bot admins (only in the server set by `guild_id`)
+- `/settings` opens an interactive panel for auto-close, TOS text and bot status
+- Every action is logged to a staff channel, with one live-updating embed per post
 
 ## 📁 Project Structure
 
-```bash
-Discord-Reputation-Bot/
-├── 🚀 RunMe.bat                    # Interactive launcher (Discord + Web)
-├── 🌐 start_dashboard.bat          # Quick web dashboard launcher
-├── 🤖 bot.py                       # Discord bot entry point
-├── 📋 requirements.txt             # All dependencies (bot + web)
-├── cogs/                           # Discord bot modules
-│   ├── rep.py                      # Review system (star ratings + modals)
-│   └── logging.py                  # Modular logging system
-├── utils/                          # Database and utilities
-│   └── db.py                       # Enhanced database (reviews + thread tracking)
-├── data/                           # Configuration and database
-│   ├── config.yaml                 # Settings (forums, admins, messages)
-│   └── rep.db                      # SQLite database (auto-created)
-├── assets/                         # Static content
-│   └── rep_messages.txt            # Review response messages
-├── web_dashboard/                  # Web interface
-│   ├── app.py                      # Flask web application
-│   ├── run_dashboard.py            # Dashboard launcher
-│   ├── templates/                  # HTML templates
-│   │   ├── base.html               # Base layout with theme system
-│   │   ├── homepage.html           # Homepage with Discord widget
-│   │   ├── index.html              # User directory
-│   │   └── user_profile.html       # User profile with post links
-│   ├── static/                     # Static web assets
-│   │   ├── css/style.css           # Discord-themed styling + dark mode
-│   │   ├── js/main.js              # Interactive JavaScript
-│   │   └── images/                 # Image assets
-│   └── utils/                      # Web utilities
-│       └── discord_integration.py  # Discord API integration
-├── guides/                         # Documentation
-│   ├── ADMIN_GUIDE.md              # Admin system guide
-│   ├── STARTUP_GUIDE.md            # Complete startup guide
-│   ├── WEB_DASHBOARD_GUIDE.md      # Web dashboard documentation
-│   ├── LOGGING_GUIDE.md            # Logging system guide
-│   ├── REVIEW_SYSTEM_MIGRATION.md  # Migration from old system
-│   ├── CLOSE_POST_FLOW.md          # Post closing workflow
-│   └── WEB_DASHBOARD_FEATURES.md   # Web features overview
-├── unused/                         # Deprecated files
-│   ├── example_cog.py              # Example integration code
-│   └── web_dashboard_requirements.txt # Old requirements file
-└── .env                            # Discord bot token (create this)
 ```
-
----
+Discord-Reputation-Bot/
+├── bot.py                  # Entry point
+├── RunMe.bat               # Windows launcher (start bot / install requirements)
+├── cogs/
+│   ├── reviews.py          # Post lifecycle, /reviews, /leaderboard, auto-close task
+│   ├── admin.py            # Configuration and admin-management commands
+│   └── logging_system.py   # Per-post log embeds in the log channel
+├── views/
+│   ├── tos.py              # TOS prompt
+│   ├── review.py           # Review panel, review form, close flow
+│   └── settings.py         # /settings panel
+├── utils/
+│   ├── db.py               # SQLite storage and migrations
+│   ├── config.py           # config.yaml loading/saving
+│   ├── checks.py           # Admin permission checks
+│   ├── threads.py          # Shared close/log helpers
+│   ├── presence.py         # Bot status
+│   ├── formatting.py       # Star rendering, safe display of user text
+│   ├── interactions.py     # Safe interaction replies and error reporting
+│   └── messages.py         # Review-panel flavour text
+├── assets/rep_messages.txt # Flavour text by rating (good / neutral / bad)
+├── data/
+│   ├── config.yaml.example # Copy to config.yaml
+│   └── rep.db              # Created on first run
+├── docs/                   # Guides
+└── tests/                  # pytest suite
+```
 
 ## 🚀 Quick Start
 
-### **Option 1: Easy Setup (Windows)**
-1. **Download and extract** the bot files
-2. **Double-click `RunMe.bat`** to open the interactive menu
-3. **Select `[4] Install/Update Requirements`** to install all dependencies
-4. **Create `.env` file** with your Discord bot token (see step 3 below)
-5. **Configure `data/config.yaml`** with your server settings (see step 4 below)
-6. **Select `[3] Both`** from the menu to start Discord bot + Web dashboard
+Full instructions, including Discord Developer Portal setup, are in **[docs/SETUP.md](docs/SETUP.md)**.
 
-### **Option 2: Manual Setup**
-
-1. **Clone & install dependencies**
+1. **Install Python 3.11+** and clone this repository.
+2. **Create the bot** in the [Discord Developer Portal](https://discord.com/developers/applications), enable the **Server Members** and **Message Content** intents, and invite it with the permissions listed in [docs/SETUP.md](docs/SETUP.md#2-invite-the-bot).
+3. **Configure it:**
    ```bash
-   git clone https://github.com/Wk4021/Marketplace-Discord-Rep-Bot.git
-   cd Marketplace-Discord-Rep-Bot
-   pip install -r requirements.txt
+   cp .env.example .env                              # add your bot token
+   cp data/config.yaml.example data/config.yaml      # add your server, forum and log channel IDs
    ```
-
-2. **Create virtual environment (recommended)**
+4. **Install and run:**
    ```bash
    python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   # or
-   source .venv/bin/activate  # Linux/Mac
+   .venv\Scripts\activate          # Windows  (macOS/Linux: source .venv/bin/activate)
    pip install -r requirements.txt
-   ```
-
-3. **Create `.env` file**
-   ```env
-   DISCORD_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
-   ```
-
-4. **Configure `data/config.yaml`**
-   ```yaml
-   # Basic Configuration
-   forums:
-     - 123456789012345678   # Your forum channel IDs
-   log_channel: 987654321098765432  # Log channel ID
-   admin_ids:              # Admin user IDs
-     - 111222333444555666  # Your admin user ID
-     - 777888999000111222  # Additional admin IDs
-   admin_role_ids:         # Admin role IDs (V3.1)
-     - 123456789012345678  # Staff role ID
-     - 987654321098765432  # Moderator role ID
-   
-   # Auto-Close Settings (V3.1)
-   auto_close_enabled: true   # Enable auto-close after first review
-   auto_close_hours: 24       # Hours before auto-close (1-168)
-   
-   # Web Dashboard Settings (Optional)
-   server_name: "Your Server Name"
-   server_invite: "https://discord.gg/yourinvite"
-   
-   # TOS Messages
-   tos_message: |
-     Please review our Terms of Service in <#123456789012345678>
-     and then click ✅ to agree or ❌ to decline.
-     If you do not respond within {timeout}, this post will be automatically closed.
-   tos_decline_response: |
-     Marketplace terms not accepted. Thread will now be closed.
-   
-   # Rep Messages
-   no_rep_messages:
-     - "Damn, get your rep up! 📈"
-     - "Zero rep? 🚨 Proceed with caution!"
-     - "No rep? Bold move. 🚀"
-     - "Are you new here? 🤔"
-     # Add more creative messages!
-   ```
-
-5. **Launch Services**
-   
-   **Discord Bot Only:**
-   ```bash
    python bot.py
    ```
-   
-   **Web Dashboard Only:**
-   ```bash
-   python start_dashboard.bat
-   # or manually:
-   cd web_dashboard
-   python run_dashboard.py
-   ```
-   
-   **Both Services:**
-   - Use `RunMe.bat` menu option `[3]`
-   - Or run both commands in separate terminals
+   On Windows you can instead double-click `RunMe.bat`: **[2]** creates the virtual environment and installs everything, **[1]** starts the bot.
+5. **Register slash commands:** as the bot's owner, type `!sync` in your server. They appear immediately.
 
-6. **Access Web Dashboard**
-   - Open browser to: **http://localhost:5000**
-   - View user profiles, reviews, and analytics
+## 💬 Commands
 
-7. **Invite Bot & Sync Commands**
-   ```
-   https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot%20applications.commands&permissions=8
-   ```
-   - Use `!sync` in Discord to register slash commands (may take up to 1 hour)
+| Command | Who | Description |
+|---------|-----|-------------|
+| `/reviews @user` | Everyone | A user's rating and latest reviews |
+| `/leaderboard` | Everyone | Top 10 users by rating |
+| `/settings` | Admins | Interactive settings panel |
+| `/channel_set #forum` | Admins | Track another forum |
+| `/log #channel` | Admins | Set the log channel |
+| `/auto_close_toggle [true/false]` | Admins | Show or change auto-close |
+| `/auto_close_hours <1-168>` | Admins | Set the auto-close timer |
+| `/send_review_ui` | Admins | Post the review panel in the current thread |
+| `/admin_add`, `/admin_remove`, `/admin_list` | Admins | Manage admin users |
+| `/admin_role_add`, `/admin_role_remove` | Admins | Manage admin roles |
+| `!sync [global]` | Bot owner | Register slash commands |
 
----
-
-## ⭐ Enhanced Review System (V3.1)
-
-### **How It Works**
-1. **User clicks "⭐ Leave a Review"** button in Discord thread
-2. **Modal popup appears** requesting rating (1-10) and optional notes
-3. **Review is saved** to database with timestamp
-4. **Thread owner gets mentioned** with review notification (V3.1)
-5. **First review triggers auto-close countdown** (configurable, V3.1)
-6. **Thread owner can cancel auto-close** for multiple items (V3.1)
-7. **UI updates** showing new average rating and latest reviews
-8. **Web dashboard** displays comprehensive review history
-
-### **Auto-Close Workflow (V3.1)**
-1. **First review received** → Auto-close timer starts (default: 24 hours)
-2. **Warning embed appears** with cancel button for multiple items
-3. **Thread owner can cancel** if they have multiple items to sell
-4. **Background task monitors** and closes expired threads automatically
-5. **All events logged** to console and Discord log channel
-
-### **Star Display Examples**
-
-| Rating | Stars Display | Description |
-|--------|---------------|-------------|
-| 10/10  | ⭐⭐⭐⭐⭐ | Perfect rating |
-| 9/10   | ⭐⭐⭐⭐✨ | Excellent with half star |
-| 8/10   | ⭐⭐⭐⭐☆ | Very good |
-| 6/10   | ⭐⭐⭐☆☆ | Average |
-| 3/10   | ⭐✨☆☆☆ | Below average |
-| 1/10   | ✨☆☆☆☆ | Poor rating |
-
-### **Available Commands**
-
-#### **🔧 New V3.1 Commands**
-| Command | Description |
-|---------|-------------|
-| `/settings` | **Interactive settings dashboard** (admin only) |
-| `/auto_close_toggle [enabled]` | Enable/disable auto-close feature (admin only) |
-| `/auto_close_hours <hours>` | Set auto-close timer 1-168 hours (admin only) |
-| `/send_review_ui` | Manually send review interface (admin only) |
-
-#### **📊 Public Commands**
-| Command | Description |
-|---------|-------------|
-| `/reviews @user` | View user's rating and recent reviews |
-| `/leaderboard` | Top 10 highest rated users |
-
-#### **👑 Admin Commands**
-| Command | Description |
-|---------|-------------|
-| `/admin_add @user` | Add user as admin |
-| `/admin_remove @user` | Remove admin privileges |
-| `/admin_list` | View all current admins |
-| `/admin_role_add @role` | Add admin role (V3.1) |
-| `/admin_role_remove @role` | Remove admin role (V3.1) |
-| `/channel_set #forum` | Enable reviews for forum channel |
-| `/log #channel` | Set log channel for review notifications |
-
-**💡 Tip**: Use `/settings` for easy configuration through interactive interface!
-
----
-
-## 🌐 Web Dashboard
-
-### **Features**
-- **Live Discord Widget**: Real-time server activity with online members
-- **User Directory**: Browse all community members with advanced search
-- **Dark/Light Mode**: Toggle themes with automatic Discord widget switching
-- **User Profiles**: Discord avatars, banners, roles, badges, and comprehensive stats
-- **Post History**: Direct "View Post" buttons linking to Discord threads
-- **Review Analytics**: Complete review timeline with Discord post integration
-- **Mobile Responsive**: Adaptive layouts for all devices
-
-### **Access**
-- **Local**: http://localhost:5000
-- **Features**: Real-time Discord integration with persistent thread tracking
-- **No Setup Required**: Automatically uses Discord bot config and guild settings
-
----
+Details and examples: **[docs/COMMANDS.md](docs/COMMANDS.md)**.
 
 ## 📚 Documentation
 
-Comprehensive guides are available in the `guides/` folder:
+- **[SETUP.md](docs/SETUP.md)**: installation, permissions and upgrading
+- **[COMMANDS.md](docs/COMMANDS.md)**: every command in detail
+- **[ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)**: who counts as an admin and what admins can do
+- **[CLOSE_POST_FLOW.md](docs/CLOSE_POST_FLOW.md)**: how posts are closed, manually and automatically
+- **[LOGGING_GUIDE.md](docs/LOGGING_GUIDE.md)**: the log channel, and logging from your own cogs
+- **[REVIEW_SYSTEM_MIGRATION.md](docs/REVIEW_SYSTEM_MIGRATION.md)**: history of the move from +/- rep to star reviews
 
-- **[STARTUP_GUIDE.md](guides/STARTUP_GUIDE.md)** - Complete setup instructions
-- **[WEB_DASHBOARD_GUIDE.md](guides/WEB_DASHBOARD_GUIDE.md)** - Web interface documentation  
-- **[ADMIN_GUIDE.md](guides/ADMIN_GUIDE.md)** - Admin system management
-- **[REVIEW_SYSTEM_MIGRATION.md](guides/REVIEW_SYSTEM_MIGRATION.md)** - Migration from v2.x
-- **[LOGGING_GUIDE.md](guides/LOGGING_GUIDE.md)** - Logging system documentation
-- **[CLOSE_POST_FLOW.md](guides/CLOSE_POST_FLOW.md)** - Post closing workflow
+## ❓ Troubleshooting
 
----
+**Slash commands don't appear.** Run `!sync` in your server as the bot owner.
 
-## ❓ Troubleshooting & FAQ
+**"Only admins can use this command."** Check that `guild_id` in `data/config.yaml` is your server's ID, then add your user ID to `admin_ids` (or have a server administrator run `/admin_add` for you).
 
-### **Common Issues**
+**The bot doesn't respond to new posts.** Check that the forum's ID is in `forums` (or add it with `/channel_set`) and that the bot can view the forum and send messages in threads.
 
-**Q: "No module named 'flask'" error?**
-A: Run the requirements installer: `RunMe.bat` → `[4] Install/Update Requirements`
+**Messages aren't removed during the TOS prompt, or posts don't lock.** The bot needs **Manage Messages** and **Manage Threads**.
 
-**Q: Web dashboard shows no users?**
-A: Make sure Discord bot has run first to create database with review data
+**"DISCORD_TOKEN is not set."** Copy `.env.example` to `.env` and paste your bot token.
 
-**Q: Discord widget not loading?**
-A: Verify your server has widget enabled in Discord Server Settings → Widget
+## 🧪 Development
 
-**Q: "View Post" buttons not working?**
-A: Ensure Discord bot has been running to save thread information to database
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+flake8 .
+```
 
-**Q: Port 5000 already in use?**
-A: Close other applications or edit `web_dashboard/app.py` to use different port
+CI runs the same checks on Python 3.11–3.14 for pull requests and pushes to `main`.
 
-**Q: Dark mode not switching Discord widget theme?**
-A: Check browser console for JavaScript errors and ensure widget iframe loads properly
-
-**Q: Slash commands not appearing?**
-A: Use `!sync` command and wait up to 1 hour for global registration
-
-**Q: Auto-close not working?**
-A: Check if auto-close is enabled in `/settings` or use `/auto_close_toggle true`
-
-**Q: How to configure auto-close timer?**
-A: Use `/settings` → Auto-Close Settings or `/auto_close_hours <1-168>`
-
-**Q: Thread closed too early?**
-A: Thread owners can cancel auto-close using the button that appears after first review
-
-**Q: Settings command not working?**
-A: Ensure you have admin permissions (user ID or role ID in config)
-
-**Q: How do I get Discord user IDs for admin config?**
-A: Enable Developer Mode in Discord, right-click user → Copy User ID
-
-### **Support**
-
-**🐛 Bug Reports**: [Open an issue](https://github.com/Wk4021/Marketplace-Discord-Rep-Bot/issues)
-**💡 Feature Requests**: Fork the repo and submit a pull request
-**💬 Community**: Join our [Discord server](https://discord.com/servers/marketplace-and-student-stores-765205625524584458)
-
-### **Contributing**
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-**Don't forget to ⭐ the project if you find it helpful!**
+3. Add tests for your change and make sure `pytest` passes
+4. Open a pull request
 
 ---
-
-<p align="center">
-  <strong>🌟 Discord Reputation Bot V3.1 🌟</strong><br/>
-  <em>Transform your Discord server into a trusted marketplace with intelligent automation</em>
-</p>
-
-<p align="center">
-  <a href="#-quick-start">🚀 Quick Start</a> •
-  <a href="#-web-dashboard">🌐 Web Dashboard</a> •
-  <a href="#-documentation">📚 Docs</a> •
-  <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458">💬 Discord</a>
-</p>
 
 <p align="center">
   <strong>⭐ If you find this bot useful, please give it a star! ⭐</strong><br/>
   <em>Join our community:</em> <a href="https://discord.com/servers/marketplace-and-student-stores-765205625524584458">Marketplace & Student Stores</a>
-</p>
-
----
-
-<p align="center">
-  <sub>Built with ❤️ for Discord marketplace communities</sub>
 </p>

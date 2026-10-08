@@ -6,18 +6,19 @@ on:
 
 jobs:
   summary:
+    # Only summarize issues from people with a role in the repository, so
+    # strangers can't make the bot post arbitrary text
+    if: contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     permissions:
       issues: write
       models: read
-      contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Run AI inference
         id: inference
+        # Requires GitHub Models to be enabled for the repository
+        continue-on-error: true
         uses: actions/ai-inference@v1
         with:
           prompt: |
@@ -25,10 +26,13 @@ jobs:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
 
+      # The response is derived from untrusted issue text, so it is passed
+      # through an environment variable and never interpolated into the script.
       - name: Comment with AI summary
-        run: |
-          gh issue comment $ISSUE_NUMBER --body '${{ steps.inference.outputs.response }}'
+        if: steps.inference.outcome == 'success' && steps.inference.outputs.response != ''
+        run: gh issue comment "$ISSUE_NUMBER" --repo "$REPO" --body "$RESPONSE"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RESPONSE: ${{ steps.inference.outputs.response }}

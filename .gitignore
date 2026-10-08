@@ -1,22 +1,32 @@
-# .gitignore
-
 # Environment variables
 .env
+.env.*
+!.env.example
 
 # Python cache
 __pycache__/
 *.py[cod]
-*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.log
 
-# SQLite database
-data/rep.db
+# Bot data (local config and SQLite database)
+data/config.yaml
+data/*.db
+data/*.db-*
+data/.config-*.yaml
 
 # Virtual environment
 .venv/
 venv/
 
-# Editor files
+# Editor / OS files
 *.swp
 *.swo
+.vscode/
+.idea/
 .DS_Store
-data/config.yaml
+Thumbs.db
