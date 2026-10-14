@@ -4,7 +4,7 @@ PyYAML
 python-dotenv
 
 # Web Dashboard Requirements
-Flask==2.3.3
+Flask==3.1.3
 MarkupSafe==3.0.2
 Werkzeug==3.1.6
 Jinja2==3.1.6
